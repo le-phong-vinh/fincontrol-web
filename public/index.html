@@ -199,8 +199,14 @@
     
     <!-- 📱 GIAO DIỆN DẠNG THẺ TỐI ƯU CHO MOBILE -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:hidden gap-3.5">
-        <div v-for="item in filteredLoans" :key="item.id" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg relative overflow-hidden">
-            
+      <div v-for="item in filteredLoans" :key="item.id" 
+     :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'border-rose-500/80 bg-rose-950/20 shadow-rose-900/30 ring-1 ring-rose-500/50' : 'border-slate-800 bg-slate-900'"
+     class="rounded-2xl p-4 space-y-3 shadow-lg relative overflow-hidden transition-all duration-300">
+    
+    <!-- Badge cảnh báo GẦN HẠN ở góc trên (nếu có) -->
+    <div v-if="isDueDateNearOrOverdue(item.dueDateRule, item.id)" class="bg-rose-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-b-md absolute top-0 left-1/2 -translate-x-1/2 tracking-wider shadow-md">
+        ⚠️ CẦN THANH TOÁN GẤP
+    </div>
             <!-- 1. TÊN NGÂN HÀNG & NGÀY NHẬN LÃI -->
             <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
                 <div class="flex items-center gap-2">
@@ -336,7 +342,9 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60 font-medium">
-                    <tr v-for="item in filteredLoans" :key="item.id" class="hover:bg-slate-800/40 transition">
+                    <tr v-for="item in filteredLoans" :key="item.id" 
+    :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-950/25 hover:bg-rose-900/40' : 'hover:bg-slate-800/40'" 
+    class="transition">
                         
                         <!-- 🟢 CỘT NGÂN HÀNG: CĂN TRÁI (text-left) & TỰ ĐỘNG XUỐNG DÒNG -->
                         <td class="px-3 py-2.5 text-left font-bold text-white max-w-[160px] break-words leading-tight">
@@ -357,11 +365,12 @@
                                 {{ item.interestDays || '-' }}
                             </span>
                         </td>
-                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                            <span :class="getDueDateClass(item.dueDateRule, item.id)" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition">
-                                <i class="fa-solid fa-clock text-[9px]"></i> {{ item.dueDateRule }}
-                            </span>
-                        </td>
+                       <td class="px-2 py-2.5 text-center whitespace-nowrap">
+    <span :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-500 text-white border-rose-400 font-extrabold animate-bounce' : getDueDateClass(item.dueDateRule, item.id)" 
+          class="px-2 py-0.5 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition">
+        <i class="fa-solid fa-clock text-[9px]"></i> {{ item.dueDateRule }}
+    </span>
+</td>
                         <!-- CỘT HẠN DEAL -->
                         <td class="px-2 py-2.5 text-center whitespace-nowrap">
                             <div v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth)">
@@ -1084,6 +1093,24 @@ const getDealCountdown = (withdrawDate, dealTerm, currentSelectedMonth) => {
                     URL.revokeObjectURL(url);
                 };
 
+                // Hàm kiểm tra xem khoản vay có gần đến hạn thanh toán (hoặc quá hạn) không
+const isDueDateNearOrOverdue = (dueDateRule, loanId) => {
+    // Nếu đã trả tiền hàng tháng rồi thì không cần cảnh báo nữa
+    if (getPaymentStatus(loanId).isMonthlyPaid) return false;
+    if (!dueDateRule) return false;
+
+    // Tách lấy số ngày từ chuỗi (VD: "Trước ngày 5" -> 5)
+    const dueDay = parseInt(dueDateRule.match(/\d+/)?.[0] || '0', 10);
+    if (!dueDay) return false;
+
+    const today = new Date();
+    const currentDay = today.getDate();
+
+    // Cảnh báo nếu: Hôm nay đã qua ngày hạn (quá hạn) HOẶC sắp đến hạn trong vòng 3 ngày tới
+    const diff = dueDay - currentDay;
+    return diff <= 3; // Trả về true nếu còn <= 3 ngày hoặc đã quá hạn
+};
+
                 onMounted(async () => {
                     loginForm.value = { username: '', password: '' };
                     loadSession();
@@ -1096,7 +1123,7 @@ const getDealCountdown = (withdrawDate, dealTerm, currentSelectedMonth) => {
                     currentMonthLoans, filteredLoans, totalPrincipal, totalMonthlyNet, totalMonthlyPayment, totalMonthlyInterest, paidMonthlyCount, interestReceivedCount,
                     showAddModal, isEditing, showPayModal, showPermissionModal, selectedPayItem, formLoan, newUserForm, currentUserName, currentUserInitials,
                     currentRoleText, canEdit, isLoggedIn, loginForm, loginError, payNote, billFileInput,
-                    formatCurrency, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
+                    formatCurrency, isDueDateNearOrOverdue, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
                     openPermissionModal,getDealCountdown, updateUserPermissions, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, openPayModal, confirmPaymentAction, login, logout, exportCSV
                 };
             }
