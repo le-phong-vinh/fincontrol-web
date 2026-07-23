@@ -10,21 +10,35 @@ const DEFAULT_PORT = 3000;
 const PORT = Number(process.env.PORT) || DEFAULT_PORT;
 
 // 1. KẾT NỐI GOOGLE CLOUD FIRESTORE
-const SERVICE_ACCOUNT_PATH = path.join(__dirname, 'serviceAccountKey.json');
+// ==========================================
+// 1. KẾT NỐI GOOGLE CLOUD FIRESTORE
+// ==========================================
+let serviceAccount;
+const renderSecretPath = '/etc/secrets/serviceAccountKey.json';
+const localSecretPath = path.join(__dirname, 'serviceAccountKey.json');
 
-if (!fsSync.existsSync(SERVICE_ACCOUNT_PATH)) {
-  console.error('❌ KHÔNG TÌM THẤY FILE serviceAccountKey.json!');
-  process.exit(1);
+try {
+  if (fsSync.existsSync(renderSecretPath)) {
+    serviceAccount = JSON.parse(fsSync.readFileSync(renderSecretPath, 'utf8'));
+    console.log('🔑 Đã tải Service Account Key từ Render Secret File');
+  } else if (fsSync.existsSync(localSecretPath)) {
+    serviceAccount = JSON.parse(fsSync.readFileSync(localSecretPath, 'utf8'));
+    console.log('🔑 Đã tải Service Account Key từ Local File');
+  } else {
+    console.error('❌ KHÔNG TÌM THẤY FILE serviceAccountKey.json!');
+  }
+} catch (e) {
+  console.error('❌ Lỗi đọc file JSON Key:', e.message);
 }
 
-const serviceAccount = require(SERVICE_ACCOUNT_PATH);
-
-// Khởi tạo Firebase Admin đúng cú pháp v12+
-initializeApp({
-  credential: cert(serviceAccount)
-});
+if (serviceAccount) {
+  initializeApp({
+    credential: cert(serviceAccount)
+  });
+}
 
 const db = getFirestore();
+db.settings({ preferRest: true }); // Tối ưu kết nối không lo nghẽn cache hay timeout
 console.log('✅ Đã kết nối thành công tới Google Cloud Firestore!');
 
 // Thư mục uploads ảnh Bill
