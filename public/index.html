@@ -333,7 +333,7 @@
                                     <td class="p-3.5 text-center whitespace-nowrap">
                                         <button @click="toggleStatus(item, 'isMonthlyPaid')" :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2.5 py-1 rounded-xl font-bold border text-[10px] transition inline-flex items-center gap-1 cursor-pointer">
                                             <i :class="getPaymentStatus(item.id).isMonthlyPaid ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
-                                            {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ' }}
+                                            {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
                                         </button>
                                     </td>
                                     <td class="p-3.5 text-center whitespace-nowrap">
@@ -807,7 +807,7 @@
                     const newValue = !current[field];
 
                     const actionName = field === 'isMonthlyPaid' 
-                        ? (newValue ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ KH')
+                        ? (newValue ? 'ĐÃ TRẢ' : 'CHƯA TRẢ')
                         : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
 
                     const confirmMsg = `XÁC NHẬN: Bạn có chắc chắn muốn đổi trạng thái của "${item.bank}" thành "${actionName}" trong Tháng ${selectedMonth.value}?`;
@@ -973,7 +973,7 @@
                     const rows = filteredLoans.value.map(item => {
                         const st = getPaymentStatus(item.id);
                         return [
-                            `"${item.bank}"`, item.totalAmount, item.withdrawDate, item.monthlyPayment, item.monthlyInterest, item.netMonthly, `"${item.interestDays || ''}"`, `"${item.dueDateRule}"`, `"${item.assignee}"`, `"${item.note || ''}"`, `"${st.isMonthlyPaid ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ'}"`, `"${st.isInterestReceived ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN'}"`
+                            `"${item.bank}"`, item.totalAmount, item.withdrawDate, item.monthlyPayment, item.monthlyInterest, item.netMonthly, `"${item.interestDays || ''}"`, `"${item.dueDateRule}"`, `"${item.assignee}"`, `"${item.note || ''}"`, `"${st.isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ'}"`, `"${st.isInterestReceived ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN'}"`
                         ].join(',');
                     });
                     const csvContent = [headers.join(','), ...rows].join('\n');
