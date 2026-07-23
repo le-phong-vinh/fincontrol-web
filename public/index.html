@@ -110,7 +110,7 @@
                 </div>
 
                 <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 sm:p-5">
-                    <div class="text-[10px] sm:text-xs font-medium text-slate-400 uppercase">Đã Trả KH</div>
+                    <div class="text-[10px] sm:text-xs font-medium text-slate-400 uppercase">Đã Trả</div>
                     <div class="text-base sm:text-2xl font-bold text-emerald-400 mt-1 sm:mt-2">{{ paidMonthlyCount }} / {{ currentMonthLoans.length }}</div>
                     <div class="text-[10px] sm:text-xs text-emerald-300 mt-0.5 font-medium">Hoàn tất {{ Math.round((paidMonthlyCount / (currentMonthLoans.length || 1)) * 100) }}%</div>
                 </div>
@@ -246,7 +246,7 @@
                             <div class="flex items-center gap-1.5">
                                 <button @click="toggleStatus(item, 'isMonthlyPaid')" :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'" class="px-2.5 py-1 rounded-lg font-bold border text-[10px] transition inline-flex items-center gap-1 cursor-pointer">
                                     <i :class="getPaymentStatus(item.id).isMonthlyPaid ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
-                                    {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ' }}
+                                    {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
                                 </button>
 
                                 <button @click="toggleStatus(item, 'isInterestReceived')" :class="getPaymentStatus(item.id).isInterestReceived ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30'" class="px-2.5 py-1 rounded-lg font-bold border text-[10px] transition inline-flex items-center gap-1 cursor-pointer">
