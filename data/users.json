@@ -1,0 +1,64 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password": "admin123",
+    "name": "Quản trị viên",
+    "role": "ADMIN"
+  },
+  {
+    "id": 2,
+    "username": "vinh",
+    "password": "123456",
+    "name": "Vinh",
+    "role": "MEMBER",
+    "permissions": {
+      "seeAllLoans": false,
+      "showRealInterest": false
+    }
+  },
+  {
+    "id": 3,
+    "username": "khang",
+    "password": "123456",
+    "name": "Khang",
+    "role": "MEMBER",
+    "permissions": {
+      "seeAllLoans": false,
+      "showRealInterest": false
+    }
+  },
+  {
+    "id": 4,
+    "username": "linh",
+    "password": "123456",
+    "name": "Linh",
+    "role": "MEMBER",
+    "permissions": {
+      "seeAllLoans": false,
+      "showRealInterest": false
+    }
+  },
+  {
+    "id": 5,
+    "username": "qvinh",
+    "password": "123456",
+    "name": "QVinh",
+    "role": "MEMBER",
+    "permissions": {
+      "seeAllLoans": false,
+      "showRealInterest": false
+    }
+  },
+  {
+    "id": 6,
+    "username": "lam",
+    "password": "123456",
+    "name": "Lắm",
+    "role": "MEMBER",
+    "permissions": {
+      "seeAllLoans": false,
+      "showRealInterest": false
+    }
+  }
+]

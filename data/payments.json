@@ -1,0 +1,30 @@
+{
+  "2026-07_1": {
+    "loanId": 1,
+    "monthKey": "2026-07",
+    "isPaid": false,
+    "paymentNote": "",
+    "billImage": null,
+    "paidAt": "2026-07-23T14:44:51.180Z",
+    "isMonthlyPaid": false,
+    "updatedAt": "2026-07-23T14:48:00.153Z",
+    "isInterestReceived": false
+  },
+  "2026-07_2": {
+    "loanId": 2,
+    "monthKey": "2026-07",
+    "isInterestReceived": false,
+    "isMonthlyPaid": false,
+    "paymentNote": "",
+    "billImage": null,
+    "updatedAt": "2026-07-23T14:48:01.857Z"
+  },
+  "2026-07_8": {
+    "loanId": 8,
+    "monthKey": "2026-07",
+    "isInterestReceived": false,
+    "isMonthlyPaid": false,
+    "paymentNote": "",
+    "billImage": null
+  }
+}

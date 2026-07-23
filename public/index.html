@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Dòng Tiền & Khoản Vay Tín Dụng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        [v-cloak] { display: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen">
+    <div id="app" v-cloak class="flex flex-col min-h-screen">
+
+        <!-- Modal Đăng Nhập -->
+        <div v-if="!isLoggedIn" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
+            <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-600 to-sky-500 p-6 text-center">
+                    <div class="mx-auto mb-3 w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">
+                        <i class="fa-solid fa-vault"></i>
+                    </div>
+                    <h2 class="text-xl font-extrabold text-white">FinControl Pro</h2>
+                    <p class="text-xs text-indigo-100 mt-1">Đăng nhập hệ thống quản lý dòng tiền</p>
+                </div>
+
+                <form @submit.prevent="login" class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Tên đăng nhập</label>
+                        <input v-model="loginForm.username" type="text" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Mật khẩu</label>
+                        <input v-model="loginForm.password" type="password" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div v-if="loginError" class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+                        {{ loginError }}
+                    </div>
+                    <button type="submit" class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 transition">
+                        Đăng nhập
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+            <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg">
+                        <i class="fa-solid fa-vault"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                            FinControl <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-semibold border border-indigo-500/30">Pro</span>
+                        </h1>
+                        <p class="text-xs text-slate-400">Quản lý tín dụng & dòng tiền trả góp</p>
+                    </div>
+                </div>
+
+                <div v-if="isLoggedIn" class="flex items-center gap-3">
+                    <button v-if="canEdit" @click="openPermissionModal" class="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-600 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-gear"></i> Quản Lý Tài Khoản & Phân Quyền
+                    </button>
+
+                    <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-xs text-white">
+                        {{ currentUserInitials }}
+                    </div>
+                    <div class="hidden lg:block text-left">
+                        <div class="text-xs font-semibold text-slate-200">{{ currentUserName }}</div>
+                        <div class="text-[10px] text-slate-400 uppercase">{{ currentRoleText }}</div>
+                    </div>
+                    <button @click="logout" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[11px] font-semibold hover:bg-slate-700">
+                        Đăng xuất
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+            <!-- Stat Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                    <div class="text-xs font-medium text-slate-400 uppercase">Tổng dư nợ: {{ formatMonthLabel(selectedMonth) }}</div>
+                    <div class="text-2xl font-bold text-white mt-2">{{ formatCurrency(totalPrincipal) }}</div>
+                    <div class="text-xs text-emerald-400 mt-1 font-medium">{{ currentMonthLoans.length }} khoản vay</div>
+                </div>
+
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                    <div class="text-xs font-medium text-slate-400 uppercase">Tổng góp, lãi: {{ formatMonthLabel(selectedMonth) }}</div>
+                    <div class="text-2xl font-bold text-emerald-400 mt-2">{{ formatCurrency(totalMonthlyNet) }}</div>
+                    <div class="text-xs text-slate-400 mt-1">Gốc + Lãi phải trả</div>
+                </div>
+
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                    <div class="text-xs font-medium text-slate-400 uppercase">Đã Trả </div>
+                    <div class="text-2xl font-bold text-emerald-400 mt-2">{{ paidMonthlyCount }} / {{ currentMonthLoans.length }} khoản</div>
+                    <div class="text-xs text-emerald-300 mt-1 font-medium">Hoàn tất {{ Math.round((paidMonthlyCount / (currentMonthLoans.length || 1)) * 100) }}%</div>
+                </div>
+
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                    <div class="text-xs font-medium text-slate-400 uppercase">Đã Nhận Lãi</div>
+                    <div class="text-2xl font-bold text-purple-400 mt-2">{{ interestReceivedCount }} / {{ currentMonthLoans.length }} khoản</div>
+                    <div class="text-xs text-purple-300 mt-1 font-medium">Hoàn tất {{ Math.round((interestReceivedCount / (currentMonthLoans.length || 1)) * 100) }}%</div>
+                </div>
+            </div>
+
+            <!-- SHEET TABS CHỌN THÁNG -->
+            <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl flex items-center justify-between gap-3 overflow-x-auto">
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+                    <span class="text-xs font-bold text-slate-400 uppercase px-2 flex items-center gap-1.5 shrink-0">
+                        <i class="fa-solid fa-table text-indigo-400"></i> SHEET THÁNG:
+                    </span>
+                    <button v-for="m in monthList" :key="m" 
+                            @click="selectedMonth = m" 
+                            :class="selectedMonth === m ? 'bg-indigo-600 text-white font-bold shadow-md scale-105' : 'bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-white'" 
+                            class="px-4 py-2 rounded-xl text-xs font-semibold transition shrink-0 flex items-center gap-2 border border-slate-800 cursor-pointer">
+                        <i class="fa-regular fa-calendar-check"></i>
+                        {{ formatMonthLabel(m) }}
+                    </button>
+
+                    <button v-if="canEdit" @click="createNewMonthSheet" class="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-slate-950 text-xs font-bold transition shrink-0 flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-plus"></i> Tạo Tháng Mới
+                    </button>
+                </div>
+
+                <button v-if="canEdit && monthList.length > 1" @click="deleteCurrentMonthSheet" class="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white text-xs font-bold transition shrink-0 flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-trash-can"></i> Xóa Tháng {{ selectedMonth }}
+                </button>
+            </div>
+
+            <!-- Bộ lọc chi tiết -->
+            <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto flex-1">
+                    <div class="relative w-full sm:w-64">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                        <input v-model="searchQuery" type="text" placeholder="Tìm ngân hàng, ghi chú..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div v-if="canEdit || userPermissions.seeAllLoans" class="w-full sm:w-auto">
+                        <select v-model="filterAssignee" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
+                            <option value="ALL">👤 Tất cả người gửi</option>
+                            <option v-for="user in allUsers" :key="user.id" :value="user.name">{{ user.name }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <button @click="exportCSV" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-2 border border-slate-700 transition">
+                        <i class="fa-solid fa-file-excel text-emerald-400"></i> Xuất Excel
+                    </button>
+                    <button v-if="canEdit" @click="openAddLoanModal" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition">
+                        <i class="fa-solid fa-plus"></i> Thêm khoản vay
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bảng hiển thị các khoản vay -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300 border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 text-[11px]">
+                                <th class="p-3.5 pl-4">Ngân hàng / Đơn vị</th>
+                                <th class="p-3.5">Tổng tiền</th>
+                                <th class="p-3.5">Ngày rút</th>
+                                <th class="p-3.5">Trả/Tháng</th>
+                                <th class="p-3.5">Lãi nhận</th>
+                                <th class="p-3.5">Tổng Thu/Chi</th>
+                                <th class="p-3.5 text-indigo-400 font-bold">Ngày nhận lãi</th>
+                                <th class="p-3.5">Hạn thanh toán</th>
+                                <th class="p-3.5">Người gửi</th>
+                                <th class="p-3.5">Ghi chú (NOTE)</th>
+                                <th class="p-3.5 text-center">Trạng Thái Trả/Tháng</th>
+                                <th class="p-3.5 text-center">Trạng Thái Nhận Lãi</th>
+                                <th class="p-3.5 text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 font-medium">
+                            <tr v-for="item in filteredLoans" :key="item.id" class="hover:bg-slate-800/40 transition">
+                                <td class="p-3.5 pl-4 font-bold text-white flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full" :class="getBankIndicatorColor(item.note)"></span>
+                                    {{ item.bank }}
+                                </td>
+                                <td class="p-3.5 text-slate-200 font-semibold">{{ formatCurrency(item.totalAmount) }}</td>
+                                <td class="p-3.5 text-slate-400">{{ formatDate(item.withdrawDate) }}</td>
+                                <td class="p-3.5 text-amber-300 font-semibold">{{ item.monthlyPayment ? formatCurrency(item.monthlyPayment) : '-' }}</td>
+                                <td class="p-3.5 text-emerald-400 font-semibold">{{ item.monthlyInterest ? formatCurrency(item.monthlyInterest) : '-' }}</td>
+                                <td class="p-3.5 font-bold text-indigo-300 bg-indigo-500/5">{{ formatCurrency(item.netMonthly) }}</td>
+                                <td class="p-3.5 text-slate-300 font-medium">
+                                    <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-[11px]">
+                                        {{ item.interestDays || '-' }}
+                                    </span>
+                                </td>
+
+                                <!-- 🔴 HẠN THANH TOÁN (AUTO ĐỎ, CHỈ XANH KHI ĐÃ TRẢ KH) 🔴 -->
+                                <td class="p-3.5">
+                                    <span :class="getDueDateClass(item.dueDateRule, item.id)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 transition">
+                                        <i class="fa-solid fa-clock text-[10px]"></i> {{ item.dueDateRule }}
+                                    </span>
+                                </td>
+
+                                <td class="p-3.5">
+                                    <span :class="getAssigneeBadgeClass(item.assignee)" class="px-2.5 py-1 rounded-full text-[11px] font-bold border">
+                                        {{ item.assignee }}
+                                    </span>
+                                </td>
+                                <td class="p-3.5">
+                                    <span v-if="item.note === 'LÃI MỚI'" class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold uppercase">
+                                        {{ item.note }}
+                                    </span>
+                                    <span v-else-if="item.note === 'LÃI CŨ'" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold uppercase">
+                                        {{ item.note }}
+                                    </span>
+                                    <span v-else-if="item.note" class="text-amber-300/90 font-medium text-xs">
+                                        {{ item.note }}
+                                    </span>
+                                    <span v-else class="text-slate-600">-</span>
+                                </td>
+
+                                <td class="p-3.5 text-center">
+                                    <button @click="toggleStatus(item, 'isMonthlyPaid')" :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2.5 py-1 rounded-xl font-bold border text-[10px] transition inline-flex items-center gap-1 cursor-pointer">
+                                        <i :class="getPaymentStatus(item.id).isMonthlyPaid ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                        {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ' }}
+                                    </button>
+                                </td>
+
+                                <td class="p-3.5 text-center">
+                                    <button @click="toggleStatus(item, 'isInterestReceived')" :class="getPaymentStatus(item.id).isInterestReceived ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2.5 py-1 rounded-xl font-bold border text-[10px] transition inline-flex items-center gap-1 cursor-pointer">
+                                        <i :class="getPaymentStatus(item.id).isInterestReceived ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                        {{ getPaymentStatus(item.id).isInterestReceived ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN' }}
+                                    </button>
+                                </td>
+
+                                <td class="p-3.5 text-center">
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <button @click="openPayModal(item)" title="Thêm Bill/Ghi chú" class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 transition">
+                                            <i class="fa-solid fa-receipt text-xs"></i>
+                                        </button>
+                                        <button v-if="canEdit" @click="editLoan(item)" title="Sửa dòng này" class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                                            <i class="fa-solid fa-pen text-xs"></i>
+                                        </button>
+                                        <button v-if="canEdit" @click="deleteLoan(item.id)" title="Xóa dòng này" class="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-700 transition">
+                                            <i class="fa-solid fa-trash text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal Phân Quyền & Quản Lý User -->
+        <div v-if="showPermissionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear text-indigo-400"></i> Quản Lý Tài Khoản & Phân Quyền
+                    </h3>
+                    <button @click="showPermissionModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div class="p-6 space-y-6 text-xs max-h-[80vh] overflow-y-auto">
+                    <div class="bg-indigo-950/30 border border-indigo-500/30 p-4 rounded-xl space-y-3">
+                        <h4 class="font-bold text-indigo-300 flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Thêm Tài Khoản Mới
+                        </h4>
+                        <form @submit.prevent="createNewUser" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-slate-400 mb-1">Tên hiển thị *</label>
+                                <input v-model="newUserForm.name" required type="text" placeholder="VD: Khang, Lâm..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Tên đăng nhập (Username) *</label>
+                                <input v-model="newUserForm.username" required type="text" placeholder="VD: khang123" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Mật khẩu *</label>
+                                <input v-model="newUserForm.password" required type="text" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-slate-400 mb-1">Vai trò *</label>
+                                <select v-model="newUserForm.role" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white">
+                                    <option value="MEMBER">MEMBER (Thành viên)</option>
+                                    <option value="ADMIN">ADMIN (Quản trị viên)</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-2 flex justify-end pt-1">
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 font-bold text-white rounded-xl">
+                                    + Khởi Tạo Tài Khoản
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="font-bold text-slate-300">Danh Sách Tài Khoản</h4>
+                        <div v-for="user in memberList" :key="user.id" class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <div class="font-bold text-indigo-300 flex items-center justify-between">
+                                <span>👤 {{ user.name }} ({{ user.username }})</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">{{ user.role }}</span>
+                                    <button @click="deleteUser(user)" title="Xóa tài khoản này" class="p-1 text-slate-500 hover:text-rose-400 transition">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="user.role === 'MEMBER'" class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-900">
+                                <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                                    <input type="checkbox" v-model="user.permissions.seeAllLoans" @change="updateUserPermissions(user)" class="rounded bg-slate-900 border-slate-700 text-indigo-600">
+                                    <span>Xem tất cả khoản vay</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                                    <input type="checkbox" v-model="user.permissions.showRealInterest" @change="updateUserPermissions(user)" class="rounded bg-slate-900 border-slate-700 text-indigo-600">
+                                    <span>Xem Lãi suất thực tế</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Thêm/Sửa Khoản Vay -->
+        <div v-if="showAddModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-indigo-400"></i> {{ isEditing ? 'Chỉnh Sửa Khoản Vay' : 'Thêm Khoản Vay Vào Tháng ' + selectedMonth }}
+                    </h3>
+                    <button @click="showAddModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                
+                <form @submit.prevent="saveLoan" class="p-6 space-y-4 text-xs">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Ngân hàng / Đơn vị *</label>
+                            <input v-model="formLoan.bank" required type="text" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Tổng tiền gửi / vay (VNĐ) *</label>
+                            <input v-model.number="formLoan.totalAmount" required type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Ngày rút</label>
+                            <input v-model="formLoan.withdrawDate" type="date" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Trả hàng tháng (Gốc + Lãi)</label>
+                            <input v-model.number="formLoan.monthlyPayment" type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Lãi nhận thực tế (Admin thấy)</label>
+                            <input v-model.number="formLoan.monthlyInterest" type="number" step="any" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-indigo-400 mb-1">Lãi hiển thị cho Member (VNĐ)</label>
+                            <input v-model.number="formLoan.memberInterest" type="number" step="any" placeholder="Để trống nếu không hiện" class="w-full bg-slate-950 border border-indigo-500/40 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Ngày nhận lãi</label>
+                            <input v-model="formLoan.interestDays" type="text" placeholder="VD: ~ngày 5..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Hạn thanh toán</label>
+                            <input v-model="formLoan.dueDateRule" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Người gửi *</label>
+                            <select v-model="formLoan.assignee" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                                <option v-for="user in allUsers" :key="user.id" :value="user.name">{{ user.name }}</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-medium text-slate-400 mb-1">Ghi chú (NOTE)</label>
+                            <input v-model="formLoan.note" type="text" placeholder="VD: LÃI MỚI, LÃI CŨ..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-800 flex items-center justify-end gap-3">
+                        <button type="button" @click="showAddModal = false" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">Hủy</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold">{{ isEditing ? 'Cập nhật' : 'Thêm mới' }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Bill Thanh Toán -->
+        <div v-if="showPayModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-receipt text-emerald-400"></i> Bill Thanh Toán Tháng {{ selectedMonth }}
+                    </h3>
+                    <button @click="showPayModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                
+                <form @submit.prevent="confirmPaymentAction" class="p-6 space-y-4 text-xs">
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex justify-between"><span class="text-slate-400">Ngân hàng:</span><span class="font-bold text-white">{{ selectedPayItem?.bank }}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Số tiền kỳ này:</span><span class="font-bold text-emerald-400 text-sm">{{ formatCurrency(selectedPayItem?.netMonthly) }}</span></div>
+                    </div>
+
+                    <div>
+                        <label class="block font-medium text-slate-400 mb-1">Ảnh bill chuyển khoản</label>
+                        <input type="file" ref="billFileInput" accept="image/*" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-400">
+                    </div>
+
+                    <div v-if="getPaymentStatus(selectedPayItem?.id).billImage" class="mt-2">
+                        <span class="text-slate-400 block mb-1">Bill đã tải lên:</span>
+                        <img :src="getPaymentStatus(selectedPayItem?.id).billImage" class="w-full h-32 object-cover rounded-xl border border-slate-800">
+                    </div>
+
+                    <div>
+                        <label class="block font-medium text-slate-400 mb-1">Ghi chú thanh toán tháng này</label>
+                        <input v-model="payNote" type="text" placeholder="VD: Đã chuyển tiền..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end gap-3">
+                        <button type="button" @click="showPayModal = false" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">Đóng</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold shadow-lg shadow-emerald-600/30">Lưu thông tin</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const loansData = ref({});
+                const payments = ref({});
+                const allUsers = ref([]);
+                const memberList = ref([]);
+                const currentRole = ref('ADMIN');
+                const userPermissions = ref({ seeAllLoans: false, showRealInterest: false });
+                const searchQuery = ref('');
+                const filterAssignee = ref('ALL');
+                const selectedMonth = ref('2026-07');
+                
+                const showAddModal = ref(false);
+                const isEditing = ref(false);
+                showPayModal = ref(false);
+                const showPermissionModal = ref(false);
+                const selectedPayItem = ref(null);
+                const sessionUser = ref(null);
+                const loginForm = ref({ username: 'admin', password: 'admin123' });
+                const loginError = ref('');
+                const payNote = ref('');
+                const billFileInput = ref(null);
+
+                const newUserForm = ref({
+                    name: '',
+                    username: '',
+                    password: '',
+                    role: 'MEMBER'
+                });
+
+                const formLoan = ref({
+                    id: Date.now(),
+                    bank: '',
+                    totalAmount: 0,
+                    withdrawDate: new Date().toISOString().split('T')[0],
+                    monthlyPayment: 0,
+                    monthlyInterest: 0,
+                    memberInterest: null,
+                    interestDays: '~ngày 5',
+                    dueDateRule: 'Trước ngày 5',
+                    assignee: 'Vinh',
+                    note: ''
+                });
+
+                const monthList = computed(() => {
+                    const keys = Object.keys(loansData.value);
+                    return keys.sort((a, b) => a.localeCompare(b));
+                });
+
+                const currentMonthLoans = computed(() => loansData.value[selectedMonth.value] || []);
+                const isLoggedIn = computed(() => Boolean(sessionUser.value));
+                const currentUserName = computed(() => sessionUser.value?.name || 'Chưa đăng nhập');
+                const currentUserInitials = computed(() => sessionUser.value?.initials || '??');
+                const currentRoleText = computed(() => currentRole.value === 'ADMIN' ? 'Super Admin' : 'Member');
+                const canEdit = computed(() => currentRole.value === 'ADMIN');
+
+                const getAuthHeaders = () => ({
+                    'Content-Type': 'application/json',
+                    'X-User-Role': currentRole.value,
+                    'X-Show-Real-Interest': String(userPermissions.value.showRealInterest)
+                });
+
+                const loadSession = () => {
+                    const saved = localStorage.getItem('fincontrol_session');
+                    if (!saved) return;
+                    try {
+                        const parsed = JSON.parse(saved);
+                        sessionUser.value = parsed;
+                        currentRole.value = parsed.role;
+                        userPermissions.value = parsed.permissions || { seeAllLoans: false, showRealInterest: false };
+                    } catch (error) {
+                        localStorage.removeItem('fincontrol_session');
+                    }
+                };
+
+                const saveSession = (user) => {
+                    localStorage.setItem('fincontrol_session', JSON.stringify(user));
+                    sessionUser.value = user;
+                    currentRole.value = user.role;
+                    userPermissions.value = user.permissions || { seeAllLoans: false, showRealInterest: false };
+                };
+
+                const login = async () => {
+                    loginError.value = '';
+                    try {
+                        const response = await fetch('/api/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(loginForm.value)
+                        });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.message || 'Đăng nhập thất bại');
+                        saveSession(result);
+                        await loadUsers();
+                        await loadLoans();
+                    } catch (error) {
+                        loginError.value = error.message;
+                    }
+                };
+
+                const logout = () => {
+                    sessionUser.value = null;
+                    currentRole.value = 'ADMIN';
+                    localStorage.removeItem('fincontrol_session');
+                };
+
+                const loadUsers = async () => {
+                    try {
+                        const res = await fetch('/api/users');
+                        if (res.ok) {
+                            allUsers.value = await res.json();
+                            memberList.value = allUsers.value;
+                        }
+                    } catch (err) {}
+                };
+
+                const createNewUser = async () => {
+                    try {
+                        const response = await fetch('/api/users', {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify(newUserForm.value)
+                        });
+                        const res = await response.json();
+                        if (!response.ok) throw new Error(res.message);
+                        alert('Khởi tạo tài khoản thành công!');
+                        newUserForm.value = { name: '', username: '', password: '', role: 'MEMBER' };
+                        await loadUsers();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                };
+
+                const deleteUser = async (user) => {
+                    if (sessionUser.value && sessionUser.value.id === user.id) {
+                        alert('Bạn không thể tự xóa tài khoản đang đăng nhập!');
+                        return;
+                    }
+
+                    if (!confirm(`XÁC NHẬN: Bạn có chắc chắn muốn XÓA TÀI KHOẢN "${user.name}" (${user.username})?`)) return;
+
+                    try {
+                        const response = await fetch(`/api/users/${user.id}`, {
+                            method: 'DELETE',
+                            headers: getAuthHeaders()
+                        });
+
+                        if (!response.ok) {
+                            const err = await response.json();
+                            throw new Error(err.message || 'Không thể xóa tài khoản');
+                        }
+
+                        alert('Xóa tài khoản thành công!');
+                        await loadUsers();
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                };
+
+                const loadLoans = async () => {
+                    try {
+                        const response = await fetch('/api/loans', { headers: getAuthHeaders() });
+                        if (!response.ok) throw new Error('Không thể tải dữ liệu');
+                        const data = await response.json();
+                        loansData.value = data.loans || {};
+                        payments.value = data.payments || {};
+
+                        if (monthList.value.length > 0 && !monthList.value.includes(selectedMonth.value)) {
+                            selectedMonth.value = monthList.value[0];
+                        }
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                };
+
+                const openPermissionModal = async () => {
+                    await loadUsers();
+                    showPermissionModal.value = true;
+                };
+
+                const updateUserPermissions = async (user) => {
+                    try {
+                        await fetch(`/api/users/${user.id}/permissions`, {
+                            method: 'PUT',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ permissions: user.permissions })
+                        });
+                    } catch (err) {
+                        alert('Lỗi cập nhật quyền');
+                    }
+                };
+
+                const getPaymentStatus = (loanId) => {
+                    const key = `${selectedMonth.value}_${loanId}`;
+                    return payments.value[key] || { isInterestReceived: false, isMonthlyPaid: false, paymentNote: '', billImage: null };
+                };
+
+                const parseInterestDayNumber = (dayStr) => {
+                    if (!dayStr) return 999;
+                    const match = dayStr.match(/\d+/);
+                    return match ? parseInt(match[0], 10) : 999;
+                };
+
+                const filteredLoans = computed(() => {
+                    const list = currentMonthLoans.value.filter(item => {
+                        if (currentRole.value === 'MEMBER' && !userPermissions.value.seeAllLoans) {
+                            const currentAssignee = (sessionUser.value?.name || '').trim().toLowerCase();
+                            const itemAssignee = (item.assignee || '').trim().toLowerCase();
+                            if (!currentAssignee || currentAssignee !== itemAssignee) return false;
+                        }
+
+                        if (searchQuery.value) {
+                            const q = searchQuery.value.toLowerCase();
+                            const matchBank = item.bank.toLowerCase().includes(q);
+                            const matchNote = item.note ? item.note.toLowerCase().includes(q) : false;
+                            if (!matchBank && !matchNote) return false;
+                        }
+
+                        if (filterAssignee.value !== 'ALL' && item.assignee !== filterAssignee.value) return false;
+
+                        return true;
+                    });
+
+                    return list.sort((a, b) => parseInterestDayNumber(a.interestDays) - parseInterestDayNumber(b.interestDays));
+                });
+
+                const totalPrincipal = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0));
+                const totalMonthlyNet = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (curr.netMonthly || 0), 0));
+                const paidMonthlyCount = computed(() => filteredLoans.value.filter(item => getPaymentStatus(item.id).isMonthlyPaid).length);
+                const interestReceivedCount = computed(() => filteredLoans.value.filter(item => getPaymentStatus(item.id).isInterestReceived).length);
+
+                const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
+                const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('vi-VN') : '-';
+                const formatMonthLabel = (month) => month ? `Tháng ${month.split('-')[1]}/${month.split('-')[0]}` : '-';
+
+                // 🔴 HÀM TÍNH MÀU HẠN THANH TOÁN (MẶC ĐỊNH ĐỎ, XANH KHI ĐÃ TRẢ KH) 🔴
+                const getDueDateClass = (rule, loanId) => {
+                    if (!rule) return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                    
+                    const isPaid = getPaymentStatus(loanId).isMonthlyPaid;
+                    if (isPaid) {
+                        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                    }
+                    
+                    return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                };
+
+                const getAssigneeBadgeClass = (name) => {
+                    switch (name) {
+                        case 'Vinh': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
+                        case 'Khang': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+                        case 'Linh': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
+                        default: return 'bg-slate-800 text-slate-300 border-slate-700';
+                    }
+                };
+
+                const getBankIndicatorColor = (note) => (note && (note.includes('LÃI MỚI') || note.includes('new'))) ? 'bg-rose-500 animate-pulse' : 'bg-indigo-500';
+
+                const toggleStatus = async (item, field) => {
+                    const current = getPaymentStatus(item.id);
+                    const newValue = !current[field];
+
+                    const actionName = field === 'isMonthlyPaid' 
+                        ? (newValue ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ KH')
+                        : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
+
+                    const confirmMsg = `XÁC NHẬN: Bạn có chắc chắn muốn đổi trạng thái của "${item.bank}" thành "${actionName}" trong Tháng ${selectedMonth.value}?`;
+
+                    if (!confirm(confirmMsg)) return;
+
+                    const formData = new FormData();
+                    formData.append('monthKey', selectedMonth.value);
+                    formData.append('field', field);
+                    formData.append('value', String(newValue));
+
+                    try {
+                        const response = await fetch(`/api/loans/${item.id}/status-toggle`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (!response.ok) throw new Error('Cập nhật thất bại');
+                        const data = await response.json();
+                        payments.value = data.payments;
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                };
+
+                const createNewMonthSheet = async () => {
+                    const lastM = monthList.value[monthList.value.length - 1] || '2026-07';
+                    const [y, m] = lastM.split('-').map(Number);
+                    const nextD = new Date(y, m, 1);
+                    const nextKey = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, '0')}`;
+
+                    try {
+                        const response = await fetch('/api/loans/create-next-month', {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ currentMonth: lastM, newMonth: nextKey })
+                        });
+                        if (!response.ok) throw new Error('Không thể tạo tháng mới');
+                        const result = await response.json();
+                        loansData.value = result.loans;
+                        selectedMonth.value = nextKey;
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                };
+
+                const deleteCurrentMonthSheet = async () => {
+                    if (!confirm(`CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ Sheet Tháng ${selectedMonth.value}?`)) return;
+
+                    try {
+                        const response = await fetch(`/api/loans/delete-month-sheet/${selectedMonth.value}`, {
+                            method: 'DELETE',
+                            headers: getAuthHeaders()
+                        });
+
+                        if (!response.ok) throw new Error('Không thể xóa Sheet tháng này');
+                        const result = await response.json();
+                        loansData.value = result.loans;
+                        
+                        if (monthList.value.length > 0) {
+                            selectedMonth.value = monthList.value[0];
+                        }
+                    } catch (err) {
+                        alert(err.message);
+                    }
+                };
+
+                const openAddLoanModal = () => {
+                    isEditing.value = false;
+                    formLoan.value = {
+                        id: Date.now(),
+                        bank: '',
+                        totalAmount: 0,
+                        withdrawDate: new Date().toISOString().split('T')[0],
+                        monthlyPayment: 0,
+                        monthlyInterest: 0,
+                        memberInterest: null,
+                        interestDays: '~ngày 5',
+                        dueDateRule: 'Trước ngày 5',
+                        assignee: allUsers.value.length > 0 ? allUsers.value[0].name : 'Vinh',
+                        note: ''
+                    };
+                    showAddModal.value = true;
+                };
+
+                const editLoan = (item) => {
+                    isEditing.value = true;
+                    formLoan.value = { 
+                        ...item,
+                        monthKey: selectedMonth.value
+                    };
+                    showAddModal.value = true;
+                };
+
+                const saveLoan = async () => {
+                    const payload = {
+                        ...formLoan.value,
+                        monthKey: selectedMonth.value,
+                        netMonthly: (formLoan.value.monthlyPayment || 0) + (formLoan.value.monthlyInterest || 0)
+                    };
+                    try {
+                        const url = isEditing.value ? `/api/loans/${payload.id}` : '/api/loans';
+                        const method = isEditing.value ? 'PUT' : 'POST';
+                        const response = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(payload) });
+                        if (!response.ok) throw new Error('Không thể lưu khoản vay');
+                        loansData.value = await response.json();
+                        showAddModal.value = false;
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                };
+
+                const deleteLoan = async (id) => {
+                    if (!confirm(`Bạn có chắc muốn xóa khoản vay này khỏi Sheet Tháng ${selectedMonth.value}?`)) return;
+                    try {
+                        const response = await fetch(`/api/loans/${id}?monthKey=${selectedMonth.value}`, {
+                            method: 'DELETE',
+                            headers: getAuthHeaders()
+                        });
+                        
+                        if (!response.ok) {
+                            const errData = await response.json();
+                            throw new Error(errData.message || 'Không thể xóa khoản vay');
+                        }
+                        
+                        const updatedLoans = await response.json();
+                        loansData.value = updatedLoans;
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                };
+
+                const openPayModal = (item) => {
+                    selectedPayItem.value = item;
+                    payNote.value = getPaymentStatus(item.id).paymentNote || '';
+                    showPayModal.value = true;
+                };
+
+                const confirmPaymentAction = async () => {
+                    try {
+                        const formData = new FormData();
+                        formData.append('monthKey', selectedMonth.value);
+                        formData.append('note', payNote.value);
+                        if (billFileInput.value && billFileInput.value.files[0]) {
+                            formData.append('billImage', billFileInput.value.files[0]);
+                        }
+
+                        const response = await fetch(`/api/loans/${selectedPayItem.value.id}/status-toggle`, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) throw new Error('Cập nhật thất bại');
+                        const data = await response.json();
+                        payments.value = data.payments;
+                        showPayModal.value = false;
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                };
+
+                const exportCSV = () => {
+                    const headers = ['bank', 'totalAmount', 'withdrawDate', 'monthlyPayment', 'monthlyInterest', 'netMonthly', 'interestDays', 'dueDateRule', 'assignee', 'note', 'isMonthlyPaid', 'isInterestReceived'];
+                    const rows = filteredLoans.value.map(item => {
+                        const st = getPaymentStatus(item.id);
+                        return [
+                            `"${item.bank}"`, item.totalAmount, item.withdrawDate, item.monthlyPayment, item.monthlyInterest, item.netMonthly, `"${item.interestDays || ''}"`, `"${item.dueDateRule}"`, `"${item.assignee}"`, `"${item.note || ''}"`, `"${st.isMonthlyPaid ? 'ĐÃ TRẢ KH' : 'CHƯA TRẢ'}"`, `"${st.isInterestReceived ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN'}"`
+                        ].join(',');
+                    });
+                    const csvContent = [headers.join(','), ...rows].join('\n');
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `fincontrol_${selectedMonth.value}.csv`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                };
+
+                onMounted(async () => {
+                    loadSession();
+                    await loadUsers();
+                    await loadLoans();
+                });
+
+                return {
+                    loansData, payments, allUsers, memberList, currentRole, userPermissions, searchQuery, filterAssignee, selectedMonth, monthList,
+                    currentMonthLoans, filteredLoans, totalPrincipal, totalMonthlyNet, paidMonthlyCount, interestReceivedCount,
+                    showAddModal, isEditing, showPayModal, showPermissionModal, selectedPayItem, formLoan, newUserForm, currentUserName, currentUserInitials,
+                    currentRoleText, canEdit, isLoggedIn, loginForm, loginError, payNote, billFileInput,
+                    formatCurrency, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
+                    openPermissionModal, updateUserPermissions, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, openPayModal, confirmPaymentAction, login, logout, exportCSV
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

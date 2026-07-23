@@ -1,0 +1,14 @@
+{
+  "name": "fincontrol-pro",
+  "version": "1.0.0",
+  "description": "FinControl Pro - Hệ thống quản lý dòng tiền và khoản vay tín dụng",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "firebase-admin": "^14.2.0",
+    "multer": "^2.2.0"
+  }
+}
