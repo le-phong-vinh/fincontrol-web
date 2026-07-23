@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hệ Thống Quản Lý Dòng Tiền & Khoản Vay Tín Dụng</title>
+    <title>FinControl_by_PZinh</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -177,7 +177,7 @@
 
                     <div v-if="canEdit || userPermissions.seeAllLoans" class="w-full sm:w-auto">
                         <select v-model="filterAssignee" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500">
-                            <option value="ALL">👤 Tất cả người gửi</option>
+                            <option value="ALL">Tất cả</option>
                             <option v-for="user in allUsers" :key="user.id" :value="user.name">{{ user.name }}</option>
                         </select>
                     </div>
