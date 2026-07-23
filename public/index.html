@@ -21,34 +21,52 @@
     <div id="app" v-cloak class="flex flex-col min-h-screen">
 
         <!-- Modal Đăng Nhập -->
-        <div v-if="!isLoggedIn" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
-            <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
-                <div class="bg-gradient-to-r from-indigo-600 to-sky-500 p-6 text-center">
-                    <div class="mx-auto mb-3 w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">
-                        <i class="fa-solid fa-vault"></i>
-                    </div>
-                    <h2 class="text-xl font-extrabold text-white">FinControl Pro</h2>
-                    <p class="text-xs text-indigo-100 mt-1">Đăng nhập hệ thống quản lý dòng tiền</p>
-                </div>
-
-                <form @submit.prevent="login" class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">Tên đăng nhập</label>
-                        <input v-model="loginForm.username" type="text" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">Mật khẩu</label>
-                        <input v-model="loginForm.password" type="password" class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" required>
-                    </div>
-                    <div v-if="loginError" class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
-                        {{ loginError }}
-                    </div>
-                    <button type="submit" class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 transition">
-                        Đăng nhập
-                    </button>
-                </form>
+<div v-if="!isLoggedIn" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-indigo-600 to-sky-500 p-6 text-center">
+            <div class="mx-auto mb-3 w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">
+                <i class="fa-solid fa-vault"></i>
             </div>
+            <h2 class="text-xl font-extrabold text-white">FinControl Pro</h2>
+            <p class="text-xs text-indigo-100 mt-1">Đăng nhập hệ thống quản lý dòng tiền</p>
         </div>
+
+        <form @submit.prevent="login" class="p-6 space-y-4" autocomplete="off">
+    <!-- Input ẩn lừa trình duyệt không tự điền tài khoản đã lưu -->
+    <input type="text" style="display:none" />
+    <input type="password" style="display:none" />
+
+    <div>
+        <label class="block text-xs text-slate-400 mb-1">Tên đăng nhập</label>
+        <input 
+          v-model="loginForm.username" 
+          type="text" 
+          name="username_nofill"
+          id="username_nofill"
+          autocomplete="one-time-code" 
+          class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" 
+          required>
+    </div>
+    <div>
+        <label class="block text-xs text-slate-400 mb-1">Mật khẩu</label>
+        <input 
+          v-model="loginForm.password" 
+          type="password" 
+          name="password_nofill"
+          id="password_nofill"
+          autocomplete="new-password" 
+          class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" 
+          required>
+    </div>
+    <div v-if="loginError" class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+        {{ loginError }}
+    </div>
+    <button type="submit" class="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-500 transition">
+        Đăng nhập
+    </button>
+</form>
+    </div>
+</div>
 
         <!-- Header -->
         <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
@@ -460,7 +478,7 @@
                 const showPermissionModal = ref(false);
                 const selectedPayItem = ref(null);
                 const sessionUser = ref(null);
-                const loginForm = ref({ username: 'admin', password: 'admin123' });
+                const loginForm = ref({ username: '', password: '' });
                 const loginError = ref('');
                 const payNote = ref('');
                 const billFileInput = ref(null);
