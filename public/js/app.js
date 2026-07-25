@@ -378,7 +378,8 @@ createApp({
             monthlyNet: totalMonthlyNet.value
         });
 
-                        onMounted(async () => {
+                    onMounted(async () => {
+                    initTheme(); // <--- Khởi tạo Theme Sáng/Tối
                     syncTabFromHash();
                     window.addEventListener('hashchange', syncTabFromHash);
 
@@ -423,6 +424,36 @@ createApp({
                     };
 
 
+                    // Thêm state quản lý Dark mode
+                    const isDarkMode = ref(true);
+
+                    const applyTheme = (dark) => {
+                        isDarkMode.value = dark;
+                        if (dark) {
+                            document.documentElement.classList.add('dark');
+                            localStorage.setItem('fincontrol_theme', 'dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                            localStorage.setItem('fincontrol_theme', 'light');
+                        }
+                    };
+
+                    const toggleTheme = () => {
+                        applyTheme(!isDarkMode.value);
+                    };
+
+                    const initTheme = () => {
+                        const savedTheme = localStorage.getItem('fincontrol_theme');
+                        if (savedTheme) {
+                            applyTheme(savedTheme === 'dark');
+                        } else {
+                            // Mặc định kiểm tra chế độ hệ thống thiết bị (iPad/iPhone/Mac)
+                            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                            applyTheme(systemPrefersDark);
+                        }
+                    };
+
+
         return {
             currentTab, loansData, payments, allUsers, memberList, currentRole, userPermissions, searchQuery, filterAssignee, selectedMonth, monthList,
             currentMonthLoans, filteredLoans, totalPrincipal, totalMonthlyNet, totalMonthlyPayment, totalMonthlyInterest, paidMonthlyCount, interestReceivedCount,
@@ -431,7 +462,7 @@ createApp({
             formatCurrency, isDueDateNearOrOverdue, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
             getDealCountdown, updateUserPermissions, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, login, logout, exportPDF, exportCSV, 
             showResetPasswordModal, selectedUserForReset, newPasswordInput,
-            openResetPasswordModal, submitChangePassword
+            openResetPasswordModal, submitChangePassword, isDarkMode, toggleTheme
         };
     }
 }).mount('#app');
