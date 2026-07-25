@@ -115,9 +115,8 @@
     </div>
 </header>
 
-        <!-- Main Content -->
-        <main class="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-
+            <!-- Main Content: Thêm w-full overflow-x-hidden để ép vừa khít màn hình iPad -->
+            <main class="flex-1 max-w-[1600px] w-full mx-auto px-2.5 sm:px-4 lg:px-8 py-3 sm:py-6 space-y-4 sm:space-y-6 overflow-x-hidden">
             <!-- ================= TAB 1: /HOME (QUẢN LÝ DÒNG TIỀN) ================= -->
             <div v-if="currentTab === 'home'" class="space-y-4 sm:space-y-6">
                 <!-- Stat Cards -->
@@ -220,204 +219,212 @@
                     </div>
                 </div>
 
-                <!-- DANH SÁCH KHOẢN VAY (BẢNG MOBILE & DESKTOP) -->
-                <div class="space-y-4">
-                    <!-- GIAO DIỆN MOBILE -->
-                    <div class="grid grid-cols-1 gap-2.5 lg:hidden">
-                        <div v-for="item in filteredLoans" :key="item.id" 
-                             :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) 
-                                ? 'border-rose-500/80 bg-rose-950/20 shadow-rose-950/40' 
-                                : 'border-slate-700/80 bg-slate-900/90 shadow-black/60'"
-                             class="relative rounded-xl p-2 border shadow-md space-y-1.5 transition-all overflow-hidden">
-                            
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600"></div>
+                <!-- DANH SÁCH KHOẢN VAY (RESPONSIVE: 1 CỘT MOBILE | 2 CỘT TABLET | BẢNG DESKTOP) -->
+<div class="space-y-4 w-full">
+    
+    <!-- 1. GIAO DIỆN CARD (1 CỘT TRÊN MOBILE | 2 CỘT TRÊN TABLET) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:hidden gap-3">
+        <div v-for="item in filteredLoans" :key="item.id" 
+             :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) 
+                ? 'border-rose-500/80 bg-rose-950/20 shadow-rose-950/40' 
+                : 'border-slate-700/80 bg-slate-900/90 shadow-black/60'"
+             class="relative rounded-2xl p-3 border shadow-md space-y-2 transition-all overflow-hidden flex flex-col justify-between">
+            
+            <!-- Vạch màu trang trí mép trái -->
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-600"></div>
 
-                            <div class="flex items-center justify-between gap-1 border-b border-slate-800/80 pb-1 text-[10px] pl-1">
-                                <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                                    <span class="w-2 h-2 rounded-full shrink-0" :class="getBankIndicatorColor(item.note)"></span>
-                                    <h3 class="font-extrabold text-white text-[11.5px] truncate leading-none">{{ item.bank }}</h3>
-                                    <span :class="getAssigneeBadgeClass(item.assignee)" class="px-1.5 py-[1px] rounded-full text-[7.5px] font-bold border shrink-0 leading-none">
-                                        {{ item.assignee }}
-                                    </span>
-                                    <span v-if="item.note" class="text-amber-300/80 font-medium text-[8px] truncate max-w-[70px] leading-none">
-                                        ({{ item.note }})
-                                    </span>
-                                </div>
-                                
-                                <div class="flex items-center gap-1.5 shrink-0">
-                                    <button v-if="canEdit" @click="editLoan(item)" class="p-0.5 text-slate-400 hover:text-white">
-                                        <i class="fa-solid fa-pen text-[8.5px]"></i>
-                                    </button>
-                                    <button v-if="canEdit" @click="deleteLoan(item.id)" class="p-0.5 text-slate-400 hover:text-rose-400">
-                                        <i class="fa-solid fa-trash text-[8.5px]"></i>
-                                    </button>
-                                </div>
-                            </div>
+            <!-- Header Card: Ngân hàng & Tác vụ -->
+            <div class="flex items-center justify-between gap-1.5 border-b border-slate-800/80 pb-2 text-xs pl-1">
+                <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                    <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="getBankIndicatorColor(item.note)"></span>
+                    <h3 class="font-extrabold text-white text-sm truncate leading-none">{{ item.bank }}</h3>
+                    <span :class="getAssigneeBadgeClass(item.assignee)" class="px-1.5 py-[1px] rounded-full text-[9px] font-bold border shrink-0 leading-none">
+                        {{ item.assignee }}
+                    </span>
+                    <span v-if="item.note" class="text-amber-300/80 font-medium text-[10px] truncate max-w-[80px] leading-none">
+                        ({{ item.note }})
+                    </span>
+                </div>
+                
+                <div class="flex items-center gap-1 shrink-0">
+                    <button v-if="canEdit" @click="editLoan(item)" title="Sửa" class="p-1 text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-pen text-xs"></i>
+                    </button>
+                    <button v-if="canEdit" @click="deleteLoan(item.id)" title="Xóa" class="p-1 text-slate-400 hover:text-rose-400 transition">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>
+            </div>
 
-                            <div class="grid grid-cols-3 gap-1 bg-slate-950/90 p-1.5 rounded-lg text-center border border-slate-800/80 ml-1">
-                                <div class="flex flex-col justify-between items-center gap-[2px]">
-                                    <span class="text-slate-400 text-[7px] uppercase font-semibold leading-none">Trả / Tháng</span>
-                                    <span class="font-bold text-amber-300 text-[9px] leading-tight">{{ item.monthlyPayment ? formatCurrency(item.monthlyPayment) : '-' }}</span>
-                                    <span :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-500 text-white font-extrabold' : getDueDateClass(item.dueDateRule, item.id)" 
-                                          class="px-1 py-[1px] rounded text-[7.5px] font-bold border max-w-full truncate leading-none">
-                                        {{ item.dueDateRule || '-' }}
-                                    </span>
-                                    <button @click="toggleStatus(item, 'isMonthlyPaid')" 
-                                            :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'" 
-                                            class="w-full py-[1.5px] rounded text-[7.5px] font-bold border cursor-pointer leading-none">
-                                        {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
-                                    </button>
-                                </div>
+            <!-- Nội dung Card: Khối dữ liệu 3 cột nhỏ -->
+            <div class="grid grid-cols-3 gap-1 bg-slate-950/90 p-2 rounded-xl text-center border border-slate-800/80 ml-1">
+                <!-- Cột 1: Trả / Tháng -->
+                <div class="flex flex-col justify-between items-center gap-1">
+                    <span class="text-slate-400 text-[8px] sm:text-[9px] uppercase font-semibold leading-none">Trả / Tháng</span>
+                    <span class="font-bold text-amber-300 text-xs leading-tight">{{ item.monthlyPayment ? formatCurrency(item.monthlyPayment) : '-' }}</span>
+                    <span :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-500 text-white font-extrabold' : getDueDateClass(item.dueDateRule, item.id)" 
+                          class="px-1 py-[1px] rounded text-[8px] font-bold border max-w-full truncate leading-none">
+                        {{ item.dueDateRule || '-' }}
+                    </span>
+                    <button @click="toggleStatus(item, 'isMonthlyPaid')" 
+                            :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'" 
+                            class="w-full py-1 rounded text-[8.5px] font-bold border cursor-pointer leading-none">
+                        {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
+                    </button>
+                </div>
 
-                                <div class="flex flex-col justify-between items-center gap-[2px] border-x border-slate-800/80 px-0.5">
-                                    <span class="text-slate-400 text-[7px] uppercase font-semibold leading-none">Lãi Nhận</span>
-                                    <span class="font-bold text-emerald-400 text-[9px] leading-tight">{{ item.monthlyInterest ? formatCurrency(item.monthlyInterest) : '-' }}</span>
-                                    <span class="px-1 py-[1px] rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-[7.5px] max-w-full truncate leading-none">
-                                        {{ item.interestDays || '-' }}
-                                    </span>
-                                    <button @click="toggleStatus(item, 'isInterestReceived')" 
-                                            :class="getPaymentStatus(item.id).isInterestReceived ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'" 
-                                            class="w-full py-[1.5px] rounded text-[7.5px] font-bold border cursor-pointer leading-none">
-                                        {{ getPaymentStatus(item.id).isInterestReceived ? 'ĐÃ NHẬN' : 'CHƯA NHẬN' }}
-                                    </button>
-                                </div>
+                <!-- Cột 2: Lãi Nhận -->
+                <div class="flex flex-col justify-between items-center gap-1 border-x border-slate-800/80 px-1">
+                    <span class="text-slate-400 text-[8px] sm:text-[9px] uppercase font-semibold leading-none">Lãi Nhận</span>
+                    <span class="font-bold text-emerald-400 text-xs leading-tight">{{ item.monthlyInterest ? formatCurrency(item.monthlyInterest) : '-' }}</span>
+                    <span class="px-1 py-[1px] rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-[8px] max-w-full truncate leading-none">
+                        {{ item.interestDays || '-' }}
+                    </span>
+                    <button @click="toggleStatus(item, 'isInterestReceived')" 
+                            :class="getPaymentStatus(item.id).isInterestReceived ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-rose-500/20 text-rose-300 border-rose-500/40'" 
+                            class="w-full py-1 rounded text-[8.5px] font-bold border cursor-pointer leading-none">
+                        {{ getPaymentStatus(item.id).isInterestReceived ? 'ĐÃ NHẬN' : 'CHƯA NHẬN' }}
+                    </button>
+                </div>
 
-                                <div class="flex flex-col justify-between items-center gap-[2px]">
-                                    <span class="text-indigo-400 text-[7px] uppercase font-bold leading-none">Thu / Chi</span>
-                                    <span class="font-extrabold text-indigo-300 text-[9.5px] leading-tight">{{ formatCurrency(item.netMonthly) }}</span>
-                                    
-                                    <div v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth)">
-                                        <span v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isExpired" class="px-1 py-[1px] rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[7.5px] font-bold leading-none">
-                                            Hết Deal
-                                        </span>
-                                        <span v-else :class="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isNearEnd ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'" class="px-1 py-[1px] rounded border text-[7.5px] font-bold leading-none">
-                                            Còn {{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).remaining }}/{{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).total }}T
-                                        </span>
-                                    </div>
-                                    <span v-else-if="item.tenure" class="text-sky-400 text-[7.5px] font-bold leading-none">{{ item.tenure }}</span>
-                                    <span v-else class="text-slate-600 text-[7.5px] leading-none">-</span>
-
-                                    <div class="flex flex-col items-center leading-none">
-                                        <span class="text-[9px] font-semibold text-slate-200">{{ formatCurrency(item.totalAmount) }}</span>
-                                        <span class="text-[7.5px] text-slate-400 font-normal mt-[1px]">{{ formatDate(item.withdrawDate) }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <!-- Cột 3: Thu / Chi & Tổng Tiền -->
+                <div class="flex flex-col justify-between items-center gap-1">
+                    <span class="text-indigo-400 text-[8px] sm:text-[9px] uppercase font-bold leading-none">Thu / Chi</span>
+                    <span class="font-extrabold text-indigo-300 text-xs leading-tight">{{ formatCurrency(item.netMonthly) }}</span>
+                    
+                    <div v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth)">
+                        <span v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isExpired" class="px-1 py-[1px] rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[8px] font-bold leading-none">
+                            Hết Deal
+                        </span>
+                        <span v-else :class="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isNearEnd ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'" class="px-1 py-[1px] rounded border text-[8px] font-bold leading-none">
+                            Còn {{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).remaining }}/{{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).total }}T
+                        </span>
                     </div>
+                    <span v-else-if="item.tenure" class="text-sky-400 text-[8px] font-bold leading-none">{{ item.tenure }}</span>
+                    <span v-else class="text-slate-600 text-[8px] leading-none">-</span>
 
-                    <!-- BẢNG DESKTOP -->
-                    <div class="hidden lg:block bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                        <div class="overflow-x-auto w-full">
-                            <table class="w-full text-[11px] text-slate-300 border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 text-[10px]">
-                                        <th class="px-3 py-3 text-left min-w-[130px] max-w-[160px]">Ngân hàng</th>
-                                        <th class="px-2 py-3 text-center">Tổng tiền</th>
-                                        <th class="px-2 py-3 text-center">Ngày rút</th>
-                                        <th class="px-2 py-3 text-center">Trả/Tháng</th>
-                                        <th class="px-2 py-3 text-center">Lãi nhận</th>
-                                        <th class="px-2 py-3 text-center">Thu/Chi</th>
-                                        <th class="px-2 py-3 text-center text-indigo-400 font-bold">Ngày lãi</th>
-                                        <th class="px-2 py-3 text-center">Hạn trả</th>
-                                        <th class="px-2 py-3 text-center text-sky-400 font-bold">Hạn deal</th>
-                                        <th class="px-2 py-3 text-center">Gửi</th>
-                                        <th class="px-2 py-3 text-center">Ghi chú</th>
-                                        <th class="px-2 py-3 text-center">Trả/Tháng</th>
-                                        <th class="px-2 py-3 text-center">Nhận Lãi</th>
-                                        <th class="px-2 py-3 text-center">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-800/60 font-medium">
-                                    <tr v-for="item in filteredLoans" :key="item.id" 
-                                        :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-950/25 hover:bg-rose-900/40' : 'hover:bg-slate-800/40'" 
-                                        class="transition">
-                                        
-                                        <td class="px-3 py-2.5 text-left font-bold text-white max-w-[160px] break-words leading-tight">
-                                            <div class="inline-flex items-center gap-1.5 flex-wrap">
-                                                <span class="w-2 h-2 rounded-full shrink-0" :class="getBankIndicatorColor(item.note)"></span>
-                                                <span>{{ item.bank }}</span>
-                                            </div>
-                                        </td>
-
-                                        <td class="px-2 py-2.5 text-center text-slate-200 font-semibold whitespace-nowrap">{{ formatCurrency(item.totalAmount) }}</td>
-                                        <td class="px-2 py-2.5 text-center text-slate-400 whitespace-nowrap">{{ formatDate(item.withdrawDate) }}</td>
-                                        <td class="px-2 py-2.5 text-center text-amber-300 font-semibold whitespace-nowrap">{{ item.monthlyPayment ? formatCurrency(item.monthlyPayment) : '-' }}</td>
-                                        <td class="px-2 py-2.5 text-center text-emerald-400 font-semibold whitespace-nowrap">{{ item.monthlyInterest ? formatCurrency(item.monthlyInterest) : '-' }}</td>
-                                        <td class="px-2 py-2.5 text-center font-bold text-indigo-300 bg-indigo-500/5 whitespace-nowrap">{{ formatCurrency(item.netMonthly) }}</td>
-                                        <td class="px-2 py-2.5 text-center text-slate-300 font-medium whitespace-nowrap">
-                                            <span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-[10px]">
-                                                {{ item.interestDays || '-' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                                            <span :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-500 text-white border-rose-400 font-extrabold animate-bounce' : getDueDateClass(item.dueDateRule, item.id)" 
-                                                  class="px-2 py-0.5 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition">
-                                                <i class="fa-solid fa-clock text-[9px]"></i> {{ item.dueDateRule }}
-                                            </span>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                                            <div v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth)">
-                                                <span v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isExpired" 
-                                                      class="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold inline-flex items-center gap-1">
-                                                    <i class="fa-solid fa-circle-xmark"></i> Hết (0/{{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).total }}T)
-                                                </span>
-                                                <span v-else 
-                                                      :class="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isNearEnd ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'"
-                                                      class="px-2 py-0.5 rounded-lg border text-[10px] font-bold inline-flex items-center gap-1">
-                                                    <i class="fa-solid fa-hourglass-half text-[9px]"></i> Còn {{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).remaining }}/{{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).total }}T
-                                                </span>
-                                            </div>
-                                            <span v-else-if="item.tenure" class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">
-                                                {{ item.tenure }}
-                                            </span>
-                                            <span v-else class="text-slate-600">-</span>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                                            <span :class="getAssigneeBadgeClass(item.assignee)" class="px-2 py-0.5 rounded-full text-[10px] font-bold border">
-                                                {{ item.assignee }}
-                                            </span>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center">
-                                            <span v-if="item.note === 'LÃI MỚI'" class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-bold uppercase whitespace-nowrap">
-                                                {{ item.note }}
-                                            </span>
-                                            <span v-else-if="item.note === 'LÃI CŨ'" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[9px] font-bold uppercase whitespace-nowrap">
-                                                {{ item.note }}
-                                            </span>
-                                            <span v-else-if="item.note" class="text-amber-300/90 font-medium text-[10px]">
-                                                {{ item.note }}
-                                            </span>
-                                            <span v-else class="text-slate-600">-</span>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                                            <button @click="toggleStatus(item, 'isMonthlyPaid')" :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2 py-0.5 rounded-lg font-bold border text-[9px] transition inline-flex items-center gap-1 cursor-pointer">
-                                                <i :class="getPaymentStatus(item.id).isMonthlyPaid ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
-                                                {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
-                                            </button>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                                            <button @click="toggleStatus(item, 'isInterestReceived')" :class="getPaymentStatus(item.id).isInterestReceived ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2 py-0.5 rounded-lg font-bold border text-[9px] transition inline-flex items-center gap-1 cursor-pointer">
-                                                <i :class="getPaymentStatus(item.id).isInterestReceived ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
-                                                {{ getPaymentStatus(item.id).isInterestReceived ? 'ĐÃ NHẬN' : 'CHƯA NHẬN' }}
-                                            </button>
-                                        </td>
-                                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
-                                            <div class="flex items-center justify-center gap-1">
-                                                <button v-if="canEdit" @click="editLoan(item)" title="Sửa" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">
-                                                    <i class="fa-solid fa-pen text-[10px]"></i>
-                                                </button>
-                                                <button v-if="canEdit" @click="deleteLoan(item.id)" title="Xóa" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-rose-400 transition">
-                                                    <i class="fa-solid fa-trash text-[10px]"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="flex flex-col items-center leading-none">
+                        <span class="text-[10px] font-semibold text-slate-200">{{ formatCurrency(item.totalAmount) }}</span>
+                        <span class="text-[8px] text-slate-400 font-normal mt-[1px]">{{ formatDate(item.withdrawDate) }}</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. GIAO DIỆN BẢNG TRUYỀN THỐNG (CHỈ HIỂN THỊ TỪ LAPTOP XL trở lên) -->
+    <div class="hidden xl:block bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl w-full">
+        <div class="overflow-x-auto w-full">
+            <table class="w-full text-[11px] text-slate-300 border-collapse">
+                <thead>
+                    <tr class="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 text-[10px]">
+                        <th class="px-3 py-3 text-left">Ngân hàng</th>
+                        <th class="px-2 py-3 text-center">Tổng tiền</th>
+                        <th class="px-2 py-3 text-center">Ngày rút</th>
+                        <th class="px-2 py-3 text-center">Trả/Tháng</th>
+                        <th class="px-2 py-3 text-center">Lãi nhận</th>
+                        <th class="px-2 py-3 text-center">Thu/Chi</th>
+                        <th class="px-2 py-3 text-center text-indigo-400 font-bold">Ngày lãi</th>
+                        <th class="px-2 py-3 text-center">Hạn trả</th>
+                        <th class="px-2 py-3 text-center text-sky-400 font-bold">Hạn deal</th>
+                        <th class="px-2 py-3 text-center">Gửi</th>
+                        <th class="px-2 py-3 text-center">Ghi chú</th>
+                        <th class="px-2 py-3 text-center">Trả/Tháng</th>
+                        <th class="px-2 py-3 text-center">Nhận Lãi</th>
+                        <th class="px-2 py-3 text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-medium">
+                    <tr v-for="item in filteredLoans" :key="item.id" 
+                        :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-950/25 hover:bg-rose-900/40' : 'hover:bg-slate-800/40'" 
+                        class="transition">
+                        
+                        <td class="px-3 py-2.5 text-left font-bold text-white max-w-[160px] break-words leading-tight">
+                            <div class="inline-flex items-center gap-1.5 flex-wrap">
+                                <span class="w-2 h-2 rounded-full shrink-0" :class="getBankIndicatorColor(item.note)"></span>
+                                <span>{{ item.bank }}</span>
+                            </div>
+                        </td>
+
+                        <td class="px-2 py-2.5 text-center text-slate-200 font-semibold whitespace-nowrap">{{ formatCurrency(item.totalAmount) }}</td>
+                        <td class="px-2 py-2.5 text-center text-slate-400 whitespace-nowrap">{{ formatDate(item.withdrawDate) }}</td>
+                        <td class="px-2 py-2.5 text-center text-amber-300 font-semibold whitespace-nowrap">{{ item.monthlyPayment ? formatCurrency(item.monthlyPayment) : '-' }}</td>
+                        <td class="px-2 py-2.5 text-center text-emerald-400 font-semibold whitespace-nowrap">{{ item.monthlyInterest ? formatCurrency(item.monthlyInterest) : '-' }}</td>
+                        <td class="px-2 py-2.5 text-center font-bold text-indigo-300 bg-indigo-500/5 whitespace-nowrap">{{ formatCurrency(item.netMonthly) }}</td>
+                        <td class="px-2 py-2.5 text-center text-slate-300 font-medium whitespace-nowrap">
+                            <span class="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-[10px]">
+                                {{ item.interestDays || '-' }}
+                            </span>
+                        </td>
+                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+                            <span :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-500 text-white border-rose-400 font-extrabold animate-bounce' : getDueDateClass(item.dueDateRule, item.id)" 
+                                  class="px-2 py-0.5 rounded-lg text-[10px] font-bold border inline-flex items-center gap-1 transition">
+                                <i class="fa-solid fa-clock text-[9px]"></i> {{ item.dueDateRule }}
+                            </span>
+                        </td>
+                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+                            <div v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth)">
+                                <span v-if="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isExpired" 
+                                      class="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-bold inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-xmark"></i> Hết (0/{{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).total }}T)
+                                </span>
+                                <span v-else 
+                                      :class="getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).isNearEnd ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'"
+                                      class="px-2 py-0.5 rounded-lg border text-[10px] font-bold inline-flex items-center gap-1">
+                                    <i class="fa-solid fa-hourglass-half text-[9px]"></i> Còn {{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).remaining }}/{{ getDealCountdown(item.withdrawDate, item.tenure, selectedMonth).total }}T
+                                </span>
+                            </div>
+                            <span v-else-if="item.tenure" class="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">
+                                {{ item.tenure }}
+                            </span>
+                            <span v-else class="text-slate-600">-</span>
+                        </td>
+                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+                            <span :class="getAssigneeBadgeClass(item.assignee)" class="px-2 py-0.5 rounded-full text-[10px] font-bold border">
+                                {{ item.assignee }}
+                            </span>
+                        </td>
+                        <td class="px-2 py-2.5 text-center">
+                            <span v-if="item.note === 'LÃI MỚI'" class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-bold uppercase whitespace-nowrap">
+                                {{ item.note }}
+                            </span>
+                            <span v-else-if="item.note === 'LÃI CŨ'" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[9px] font-bold uppercase whitespace-nowrap">
+                                {{ item.note }}
+                            </span>
+                            <span v-else-if="item.note" class="text-amber-300/90 font-medium text-[10px]">
+                                {{ item.note }}
+                            </span>
+                            <span v-else class="text-slate-600">-</span>
+                        </td>
+                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+                            <button @click="toggleStatus(item, 'isMonthlyPaid')" :class="getPaymentStatus(item.id).isMonthlyPaid ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2 py-0.5 rounded-lg font-bold border text-[9px] transition inline-flex items-center gap-1 cursor-pointer">
+                                <i :class="getPaymentStatus(item.id).isMonthlyPaid ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                {{ getPaymentStatus(item.id).isMonthlyPaid ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
+                            </button>
+                        </td>
+                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+                            <button @click="toggleStatus(item, 'isInterestReceived')" :class="getPaymentStatus(item.id).isInterestReceived ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'" class="px-2 py-0.5 rounded-lg font-bold border text-[9px] transition inline-flex items-center gap-1 cursor-pointer">
+                                <i :class="getPaymentStatus(item.id).isInterestReceived ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle'"></i>
+                                {{ getPaymentStatus(item.id).isInterestReceived ? 'ĐÃ NHẬN' : 'CHƯA NHẬN' }}
+                            </button>
+                        </td>
+                        <td class="px-2 py-2.5 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-1">
+                                <button v-if="canEdit" @click="editLoan(item)" title="Sửa" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition">
+                                    <i class="fa-solid fa-pen text-[10px]"></i>
+                                </button>
+                                <button v-if="canEdit" @click="deleteLoan(item.id)" title="Xóa" class="p-1 rounded bg-slate-800 text-slate-400 hover:text-rose-400 transition">
+                                    <i class="fa-solid fa-trash text-[10px]"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
             </div>
 
             <!-- ================= TAB 2: /MEMBER (TRANG QUẢN LÝ THÀNH VIÊN) ================= -->
