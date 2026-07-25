@@ -29,6 +29,18 @@ createApp({
 
         const isDarkMode = ref(true);
 
+        // State & Helper Toast Notification
+        const toast = ref({ show: false, message: '', type: 'success' });
+        let toastTimeout = null;
+
+        const showToast = (message, type = 'success') => {
+            toast.value = { show: true, message, type };
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.value.show = false;
+            }, 3000);
+        };
+
         // State & Helper Confirm Modal Custom
         const confirmModal = ref({
             show: false,
@@ -102,8 +114,15 @@ createApp({
         const isLoggedIn = computed(() => Boolean(sessionUser.value));
         const currentUserName = computed(() => sessionUser.value?.name || 'Chưa đăng nhập');
         const currentUserInitials = computed(() => sessionUser.value?.initials || '??');
-        const currentRoleText = computed(() => currentRole.value === 'ADMIN' ? 'Super Admin' : 'Member');
+        
+        const currentRoleText = computed(() => {
+            if (currentRole.value === 'ADMIN') return 'Super Admin';
+            if (currentRole.value === 'VIEWER') return 'Chỉ Xem (Viewer)';
+            return 'Member';
+        });
+
         const canEdit = computed(() => currentRole.value === 'ADMIN');
+        const canToggleStatus = computed(() => currentRole.value === 'ADMIN' || currentRole.value === 'MEMBER');
 
         watch(currentTab, (newTab) => {
             window.location.hash = newTab;
@@ -207,17 +226,17 @@ createApp({
                 });
                 const res = await response.json();
                 if (!response.ok) throw new Error(res.message);
-                alert('Khởi tạo tài khoản thành công!');
+                showToast('Khởi tạo tài khoản thành công!', 'success');
                 newUserForm.value = { name: '', username: '', password: '', role: 'MEMBER' };
                 await loadUsers();
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         };
 
         const deleteUser = async (user) => {
             if (sessionUser.value && sessionUser.value.id === user.id) {
-                alert('Bạn không thể tự xóa tài khoản đang đăng nhập!');
+                showToast('Bạn không thể tự xóa tài khoản đang đăng nhập!', 'error');
                 return;
             }
 
@@ -231,10 +250,34 @@ createApp({
             try {
                 const response = await fetch(`/api/users/${user.id}`, { method: 'DELETE', headers: getAuthHeaders() });
                 if (!response.ok) throw new Error('Không thể xóa tài khoản');
-                alert('Xóa tài khoản thành công!');
+                showToast('Xóa tài khoản thành công!', 'success');
                 await loadUsers();
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
+            }
+        };
+
+        const updateUserRole = async (user) => {
+            try {
+                const response = await fetch(`/api/users/${user.id}/role`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ role: user.role })
+                });
+                const resData = await response.json();
+                if (!response.ok) throw new Error(resData.message || 'Không thể đổi vai trò');
+
+                if (sessionUser.value && sessionUser.value.id === user.id) {
+                    sessionUser.value.role = user.role;
+                    currentRole.value = user.role;
+                    saveSession(sessionUser.value);
+                }
+
+                showToast(`Đã đổi vai trò của "${user.name}" thành ${user.role}!`, 'success');
+                await loadUsers();
+            } catch (err) {
+                showToast(err.message, 'error');
+                await loadUsers();
             }
         };
 
@@ -250,7 +293,7 @@ createApp({
                     selectedMonth.value = monthList.value[0];
                 }
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         };
 
@@ -261,8 +304,9 @@ createApp({
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ permissions: user.permissions })
                 });
+                showToast('Cập nhật quyền xem thành công!', 'info');
             } catch (err) {
-                alert('Lỗi cập nhật quyền');
+                showToast('Lỗi cập nhật quyền', 'error');
             }
         };
 
@@ -279,7 +323,7 @@ createApp({
 
         const filteredLoans = computed(() => {
             const list = currentMonthLoans.value.filter(item => {
-                if (currentRole.value === 'MEMBER' && !userPermissions.value.seeAllLoans) {
+                if ((currentRole.value === 'MEMBER' || currentRole.value === 'VIEWER') && !userPermissions.value.seeAllLoans) {
                     const currentAssignee = (sessionUser.value?.name || '').trim().toLowerCase();
                     const itemAssignee = (item.assignee || '').trim().toLowerCase();
                     if (!currentAssignee || currentAssignee !== itemAssignee) return false;
@@ -327,6 +371,11 @@ createApp({
         const getBankIndicatorColor = (note) => (note && (note.includes('LÃI MỚI') || note.includes('new'))) ? 'bg-rose-500 animate-pulse' : 'bg-cyan-500';
 
         const toggleStatus = async (item, field) => {
+            if (!canToggleStatus.value) {
+                showToast('Tài khoản VIEWER chỉ có quyền xem, không thể thay đổi trạng thái!', 'error');
+                return;
+            }
+
             const current = getPaymentStatus(item.id);
             const newValue = !current[field];
             const actionName = field === 'isMonthlyPaid' ? (newValue ? 'ĐÃ TRẢ' : 'CHƯA TRẢ') : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
@@ -348,8 +397,9 @@ createApp({
                 if (!response.ok) throw new Error('Cập nhật thất bại');
                 const data = await response.json();
                 payments.value = data.payments;
+                showToast(`Đã đổi trạng thái thành "${actionName}"!`, 'success');
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         };
 
@@ -369,8 +419,9 @@ createApp({
                 const result = await response.json();
                 loansData.value = result.loans;
                 selectedMonth.value = nextKey;
+                showToast(`Khởi tạo Sheet Tháng ${nextKey} thành công!`, 'success');
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         };
 
@@ -385,7 +436,7 @@ createApp({
             if (!res.confirmed) return;
 
             if (!res.password) {
-                alert('Vui lòng nhập mật khẩu Admin!');
+                showToast('Vui lòng nhập mật khẩu Admin!', 'error');
                 return;
             }
 
@@ -407,9 +458,9 @@ createApp({
                 const result = await response.json();
                 loansData.value = result.loans;
                 if (monthList.value.length > 0) selectedMonth.value = monthList.value[0];
-                alert(`Đã xóa thành công Sheet Tháng ${selectedMonth.value}!`);
+                showToast(`Đã xóa thành công Sheet Tháng ${selectedMonth.value}!`, 'success');
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         };
 
@@ -450,8 +501,9 @@ createApp({
                 if (!response.ok) throw new Error('Không thể lưu khoản vay');
                 loansData.value = await response.json();
                 showAddModal.value = false;
+                showToast(isEditing.value ? 'Cập nhật khoản vay thành công!' : 'Thêm khoản vay mới thành công!', 'success');
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         };
 
@@ -467,8 +519,9 @@ createApp({
                 const response = await fetch(`/api/loans/${id}?monthKey=${selectedMonth.value}`, { method: 'DELETE', headers: getAuthHeaders() });
                 if (!response.ok) throw new Error('Không thể xóa khoản vay');
                 loansData.value = await response.json();
+                showToast('Đã xóa khoản vay!', 'success');
             } catch (error) {
-                alert(error.message);
+                showToast(error.message, 'error');
             }
         };
 
@@ -513,11 +566,11 @@ createApp({
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
 
-                alert(`Đã đổi mật khẩu thành công cho tài khoản "${selectedUserForReset.value.name}"!`);
+                showToast(`Đã đổi mật khẩu thành công cho tài khoản "${selectedUserForReset.value.name}"!`, 'success');
                 showResetPasswordModal.value = false;
                 await loadUsers();
             } catch (err) {
-                alert(err.message || 'Lỗi khi đổi mật khẩu');
+                showToast(err.message || 'Lỗi khi đổi mật khẩu', 'error');
             }
         };
 
@@ -525,10 +578,10 @@ createApp({
             currentTab, loansData, payments, allUsers, memberList, currentRole, userPermissions, searchQuery, filterAssignee, selectedMonth, monthList,
             currentMonthLoans, filteredLoans, totalPrincipal, totalMonthlyNet, totalMonthlyPayment, totalMonthlyInterest, paidMonthlyCount, interestReceivedCount,
             showAddModal, isEditing, formLoan, newUserForm, currentUserName, currentUserInitials,
-            currentRoleText, canEdit, isLoggedIn, loginForm, loginError, isDarkMode, toggleTheme,
-            confirmModal, showConfirm, closeConfirm,
+            currentRoleText, canEdit, canToggleStatus, isLoggedIn, loginForm, loginError, isDarkMode, toggleTheme,
+            confirmModal, showConfirm, closeConfirm, toast, showToast,
             formatCurrency, isDueDateNearOrOverdue, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
-            getDealCountdown, updateUserPermissions, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, login, logout, exportPDF, exportCSV, 
+            getDealCountdown, updateUserPermissions, updateUserRole, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, login, logout, exportPDF, exportCSV, 
             showResetPasswordModal, selectedUserForReset, newPasswordInput,
             openResetPasswordModal, submitChangePassword
         };

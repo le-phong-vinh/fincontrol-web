@@ -53,8 +53,13 @@ const upload = multer({ storage });
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Middleware kiểm tra quyền ADMIN
 const requireAdmin = (req, res, next) => {
-  next(); // Middleware phân quyền
+  const userRole = req.headers['x-user-role'];
+  if (userRole !== 'ADMIN') {
+    return res.status(403).json({ message: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản ADMIN!' });
+  }
+  next();
 };
 
 // ==========================================
@@ -101,7 +106,7 @@ const migrateJsonToFirestore = async () => {
 };
 
 // ==========================================
-// 3. API USER & SYSTEM (CẬP NHẬT TRẢ MẬT KHẨU CHO ADMIN)
+// 3. API USER & SYSTEM
 // ==========================================
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body || {};
@@ -124,20 +129,19 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// GET /api/users: Trả về danh sách user (Giữ mật khẩu nếu là ADMIN, ẩn mật khẩu nếu là MEMBER)
+// GET /api/users: Trả về danh sách user
 app.get('/api/users', async (req, res) => {
   try {
-    const userRole = req.headers['x-user-role']; // Kiểm tra vai trò truy cập từ Header
+    const userRole = req.headers['x-user-role'];
     const snapshot = await db.collection('users').get();
     
     const users = snapshot.docs.map(doc => {
       const userData = doc.data();
-      // Nếu không phải ADMIN, bảo mật bằng cách ẩn thuộc tính password trước khi gửi về Client
       if (userRole !== 'ADMIN') {
         const { password, ...safeUser } = userData;
         return safeUser;
       }
-      return userData; // Nếu là ADMIN, giữ nguyên dữ liệu chứa password
+      return userData;
     });
 
     res.json(users);
@@ -165,7 +169,6 @@ app.post('/api/users', requireAdmin, async (req, res) => {
 
     await db.collection('users').doc(String(newUser.id)).set(newUser);
     
-    // Trả lại danh sách cập nhật
     const allUsersSnap = await db.collection('users').get();
     res.status(201).json(allUsersSnap.docs.map(doc => doc.data()));
   } catch (err) {
@@ -192,6 +195,58 @@ app.put('/api/users/:id/permissions', requireAdmin, async (req, res) => {
     res.json({ message: 'Cập nhật phân quyền thành công' });
   } catch (err) {
     res.status(500).json({ message: 'Lỗi cập nhật quyền' });
+  }
+});
+
+// API ADMIN ĐỔI MẬT KHẨU TÀI KHOẢN
+app.put('/api/users/:id/password', requireAdmin, async (req, res) => {
+  try {
+    const userId = String(req.params.id);
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Mật khẩu mới không được để trống' });
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    const docSnap = await userRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
+    }
+
+    await userRef.update({ password });
+    console.log(`🔑 [GOOGLE CLOUD]: Đã cập nhật mật khẩu cho User ID "${userId}"`);
+
+    res.json({ message: 'Đổi mật khẩu thành công' });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi khi cập nhật mật khẩu', error: err.message });
+  }
+});
+
+// API ADMIN ĐỔI VAI TRÒ (ROLE) CỦA TÀI KHOẢN
+app.put('/api/users/:id/role', requireAdmin, async (req, res) => {
+  try {
+    const userId = String(req.params.id);
+    const { role } = req.body;
+
+    if (!['ADMIN', 'MEMBER', 'VIEWER'].includes(role)) {
+      return res.status(400).json({ message: 'Vai trò không hợp lệ' });
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    const docSnap = await userRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
+    }
+
+    await userRef.update({ role });
+    console.log(`👑 [GOOGLE CLOUD]: Đã cập nhật Role "${role}" cho User ID "${userId}"`);
+
+    res.json({ message: 'Cập nhật vai trò thành công' });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi khi cập nhật vai trò', error: err.message });
   }
 });
 
@@ -349,20 +404,43 @@ app.post('/api/loans/create-next-month', requireAdmin, async (req, res) => {
   }
 });
 
+// DELETE /api/loans/delete-month-sheet/:monthKey (YÊU CẦU MAT KHẨU ADMIN)
 app.delete('/api/loans/delete-month-sheet/:monthKey', requireAdmin, async (req, res) => {
   try {
     const { monthKey } = req.params;
+    const adminPassword = req.headers['x-admin-password'] || req.body.adminPassword;
+
+    if (!adminPassword) {
+      return res.status(400).json({ message: 'Yêu cầu nhập mật khẩu Admin để xác nhận!' });
+    }
+
+    const adminCheck = await db.collection('users')
+      .where('role', '==', 'ADMIN')
+      .where('password', '==', adminPassword)
+      .get();
+
+    if (adminCheck.empty) {
+      return res.status(401).json({ message: 'Mật khẩu Admin không chính xác!' });
+    }
+
     await db.collection('loans').doc(monthKey).delete();
 
     const updatedLoans = await getAllLoansObject();
+    console.log(`🗑️ [GOOGLE CLOUD]: Đã xóa vĩnh viễn Sheet Tháng ${monthKey}`);
     res.json({ message: `Đã xóa Sheet Tháng ${monthKey}`, loans: updatedLoans });
   } catch (error) {
     res.status(500).json({ message: 'Không thể xóa Sheet Tháng', error: error.message });
   }
 });
 
+// POST /api/loans/:id/status-toggle (CHẶN ROLE VIEWER)
 app.post('/api/loans/:id/status-toggle', upload.single('billImage'), async (req, res) => {
   try {
+    const userRole = req.headers['x-user-role'];
+    if (userRole === 'VIEWER') {
+      return res.status(403).json({ message: 'Tài khoản VIEWER chỉ có quyền xem, không thể thay đổi trạng thái!' });
+    }
+
     const loanId = String(req.params.id);
     const { monthKey, field, value, note } = req.body;
 
@@ -397,56 +475,6 @@ app.post('/api/loans/:id/status-toggle', upload.single('billImage'), async (req,
     res.status(500).json({ message: 'Lỗi cập nhật trạng thái', error: error.message });
   }
 });
-
-
-// API ADMIN ĐỔI MẬT KHẨU TÀI KHOẢN (ADMIN VÀ MEMBER)
-app.put('/api/users/:id/password', requireAdmin, async (req, res) => {
-  try {
-    const userId = String(req.params.id);
-    const { password } = req.body;
-
-    if (!password) {
-      return res.status(400).json({ message: 'Mật khẩu mới không được để trống' });
-    }
-
-    const userRef = db.collection('users').doc(userId);
-    const docSnap = await userRef.get();
-
-    if (!docSnap.exists) {
-      return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
-    }
-
-    await userRef.update({ password });
-    console.log(`🔑 [GOOGLE CLOUD]: Đã cập nhật mật khẩu cho User ID "${userId}"`);
-
-    res.json({ message: 'Đổi mật khẩu thành công' });
-  } catch (err) {
-    res.status(500).json({ message: 'Lỗi khi cập nhật mật khẩu', error: err.message });
-  }
-});
-
-
-const loadUsers = async () => {
-    try {
-        const res = await fetch('/api/users', { headers: getAuthHeaders() });
-        if (res.ok) {
-            const users = await res.json();
-            
-            // Map danh sách mới nhưng giữ nguyên trạng thái showPassword cũ nếu user đã bấm xem trước đó
-            allUsers.value = users.map(u => {
-                const existingUser = memberList.value.find(m => m.id === u.id);
-                return {
-                    ...u,
-                    showPassword: existingUser ? existingUser.showPassword : false
-                };
-            });
-            
-            memberList.value = allUsers.value;
-        }
-    } catch (err) {
-        console.error('Lỗi tải danh sách thành viên:', err);
-    }
-};
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
