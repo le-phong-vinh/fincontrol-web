@@ -115,7 +115,7 @@
     </div>
 </header>
 
-            <!-- Main Content: Thêm w-full overflow-x-hidden để ép vừa khít màn hình iPad -->
+        <!-- Main Content: Thêm w-full overflow-x-hidden để ép vừa khít màn hình iPad -->
             <main class="flex-1 max-w-[1600px] w-full mx-auto px-2.5 sm:px-4 lg:px-8 py-3 sm:py-6 space-y-4 sm:space-y-6 overflow-x-hidden">
             <!-- ================= TAB 1: /HOME (QUẢN LÝ DÒNG TIỀN) ================= -->
             <div v-if="currentTab === 'home'" class="space-y-4 sm:space-y-6">
@@ -219,11 +219,12 @@
                     </div>
                 </div>
 
-                <!-- DANH SÁCH KHOẢN VAY (RESPONSIVE: 1 CỘT MOBILE | 2 CỘT TABLET | BẢNG DESKTOP) -->
+                <!-- DANH SÁCH KHOẢN VAY (1 CỘT MOBILE | 2 CỘT IPAD DỌC | BẢNG TRUYỀN THỐNG IPAD NGANG & LAPTOP) -->
 <div class="space-y-4 w-full">
     
-    <!-- 1. GIAO DIỆN CARD (1 CỘT TRÊN MOBILE | 2 CỘT TRÊN TABLET) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:hidden gap-3">
+    <!-- 1. GIAO DIỆN CARD: 1 cột trên Mobile (<640px) | 2 cột trên Tablet Dọc (Portrait) -->
+    <!-- Sử dụng 'portrait:flex' và 'landscape:hidden' kết hợp Tailwind breakpoint 'lg' -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:landscape:hidden gap-3">
         <div v-for="item in filteredLoans" :key="item.id" 
              :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) 
                 ? 'border-rose-500/80 bg-rose-950/20 shadow-rose-950/40' 
@@ -312,8 +313,8 @@
         </div>
     </div>
 
-    <!-- 2. GIAO DIỆN BẢNG TRUYỀN THỐNG (CHỈ HIỂN THỊ TỪ LAPTOP XL trở lên) -->
-    <div class="hidden xl:block bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl w-full">
+    <!-- 2. GIAO DIỆN BẢNG TRUYỀN THỐNG: Hiển thị trên iPad Ngang (Tablet Landscape) & Laptop (Màn hình ≥ 1024px) -->
+    <div class="hidden sm:landscape:block lg:block bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl w-full">
         <div class="overflow-x-auto w-full">
             <table class="w-full text-[11px] text-slate-300 border-collapse">
                 <thead>
@@ -339,7 +340,7 @@
                         :class="isDueDateNearOrOverdue(item.dueDateRule, item.id) ? 'bg-rose-950/25 hover:bg-rose-900/40' : 'hover:bg-slate-800/40'" 
                         class="transition">
                         
-                        <td class="px-3 py-2.5 text-left font-bold text-white max-w-[160px] break-words leading-tight">
+                        <td class="px-3 py-2.5 text-left font-bold text-white max-w-[150px] break-words leading-tight">
                             <div class="inline-flex items-center gap-1.5 flex-wrap">
                                 <span class="w-2 h-2 rounded-full shrink-0" :class="getBankIndicatorColor(item.note)"></span>
                                 <span>{{ item.bank }}</span>
