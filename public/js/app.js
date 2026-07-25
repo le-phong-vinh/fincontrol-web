@@ -17,9 +17,7 @@ createApp({
         const filterAssignee = ref('ALL');
         const selectedMonth = ref('2026-07');
         
-        // BIẾN QUẢN LÝ TAB TRANG CHÍNH (/HOME HOẶC /MEMBER)
         const currentTab = ref('home'); 
-        
         const showAddModal = ref(false);
         const isEditing = ref(false);
         const sessionUser = ref(null);
@@ -29,6 +27,61 @@ createApp({
 
         const newUserForm = ref({ name: '', username: '', password: '', role: 'MEMBER' });
 
+        const isDarkMode = ref(true);
+
+        // State & Helper Confirm Modal Custom
+        const confirmModal = ref({
+            show: false,
+            title: 'Xác nhận hành động',
+            message: '',
+            type: 'info',
+            resolve: null
+        });
+
+        const showConfirm = (message, title = 'Xác nhận hành động', type = 'info') => {
+            return new Promise((resolve) => {
+                confirmModal.value = {
+                    show: true,
+                    title,
+                    message,
+                    type,
+                    resolve
+                };
+            });
+        };
+
+        const closeConfirm = (result) => {
+            if (confirmModal.value.resolve) {
+                confirmModal.value.resolve(result);
+            }
+            confirmModal.value.show = false;
+        };
+
+        const applyTheme = (dark) => {
+            isDarkMode.value = dark;
+            if (dark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('fincontrol_theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('fincontrol_theme', 'light');
+            }
+        };
+
+        const toggleTheme = () => {
+            applyTheme(!isDarkMode.value);
+        };
+
+        const initTheme = () => {
+            const savedTheme = localStorage.getItem('fincontrol_theme');
+            if (savedTheme) {
+                applyTheme(savedTheme === 'dark');
+            } else {
+                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                applyTheme(systemPrefersDark);
+            }
+        };
+
         const formLoan = ref({
             id: Date.now(), bank: '', totalAmount: 0,
             withdrawDate: new Date().toISOString().split('T')[0],
@@ -36,7 +89,6 @@ createApp({
             interestDays: '~ngày 5', dueDateRule: 'Trước ngày 5', tenure: '', assignee: 'Vinh', note: ''
         });
 
-        // Computed Properties
         const monthList = computed(() => Object.keys(loansData.value).sort((a, b) => a.localeCompare(b)));
         const currentMonthLoans = computed(() => loansData.value[selectedMonth.value] || []);
         const isLoggedIn = computed(() => Boolean(sessionUser.value));
@@ -45,7 +97,6 @@ createApp({
         const currentRoleText = computed(() => currentRole.value === 'ADMIN' ? 'Super Admin' : 'Member');
         const canEdit = computed(() => currentRole.value === 'ADMIN');
 
-        // Đồng bộ URL Hash (#home, #member)
         watch(currentTab, (newTab) => {
             window.location.hash = newTab;
         });
@@ -58,22 +109,21 @@ createApp({
         };
 
         const getAuthHeaders = () => {
-    // Đọc trực tiếp session từ localStorage để luôn chính xác role ADMIN
-    let role = 'MEMBER';
-    try {
-        const saved = localStorage.getItem('fincontrol_session');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            role = parsed.role || 'MEMBER';
-        }
-    } catch (e) {}
+            let role = 'MEMBER';
+            try {
+                const saved = localStorage.getItem('fincontrol_session');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    role = parsed.role || 'MEMBER';
+                }
+            } catch (e) {}
 
-    return {
-        'Content-Type': 'application/json',
-        'X-User-Role': role,
-        'X-Show-Real-Interest': String(userPermissions.value.showRealInterest)
-    };
-};
+            return {
+                'Content-Type': 'application/json',
+                'X-User-Role': role,
+                'X-Show-Real-Interest': String(userPermissions.value.showRealInterest)
+            };
+        };
 
         const loadSession = () => {
             const saved = localStorage.getItem('fincontrol_session');
@@ -122,26 +172,23 @@ createApp({
         };
 
         const loadUsers = async () => {
-         try {
-        const res = await fetch('/api/users', { headers: getAuthHeaders() });
-        if (res.ok) {
-            const users = await res.json();
-            
-            // Map danh sách mới nhưng giữ nguyên trạng thái showPassword cũ nếu user đã bấm xem trước đó
-            allUsers.value = users.map(u => {
-                const existingUser = memberList.value.find(m => m.id === u.id);
-                return {
-                    ...u,
-                    showPassword: existingUser ? existingUser.showPassword : false
-                };
-            });
-            
-            memberList.value = allUsers.value;
-        }
-    } catch (err) {
-        console.error('Lỗi tải danh sách thành viên:', err);
-    }
-};
+            try {
+                const res = await fetch('/api/users', { headers: getAuthHeaders() });
+                if (res.ok) {
+                    const users = await res.json();
+                    allUsers.value = users.map(u => {
+                        const existingUser = memberList.value.find(m => m.id === u.id);
+                        return {
+                            ...u,
+                            showPassword: existingUser ? existingUser.showPassword : false
+                        };
+                    });
+                    memberList.value = allUsers.value;
+                }
+            } catch (err) {
+                console.error('Lỗi tải danh sách thành viên:', err);
+            }
+        };
 
         const createNewUser = async () => {
             try {
@@ -165,7 +212,13 @@ createApp({
                 alert('Bạn không thể tự xóa tài khoản đang đăng nhập!');
                 return;
             }
-            if (!confirm(`XÁC NHẬN: Bạn có chắc chắn muốn XÓA TÀI KHOẢN "${user.name}" (${user.username})?`)) return;
+
+            const confirmed = await showConfirm(
+                `Bạn có chắc chắn muốn XÓA TÀI KHOẢN "${user.name}" (${user.username})? Hành động này không thể khôi phục.`,
+                'Xóa Tài Khoản',
+                'danger'
+            );
+            if (!confirmed) return;
 
             try {
                 const response = await fetch(`/api/users/${user.id}`, { method: 'DELETE', headers: getAuthHeaders() });
@@ -238,39 +291,45 @@ createApp({
             return list.sort((a, b) => parseInterestDayNumber(a.interestDays) - parseInterestDayNumber(b.interestDays));
         });
 
-        const totalPrincipal = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0));
-        const totalMonthlyNet = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (curr.netMonthly || 0), 0));
-        const totalMonthlyPayment = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (curr.monthlyPayment || 0), 0));
-        const totalMonthlyInterest = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (curr.monthlyInterest || 0), 0));
+        // Computed tính toán chống Floating-point và cộng nối chuỗi
+        const totalPrincipal = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (Number(curr.totalAmount) || 0), 0));
+        const totalMonthlyPayment = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (Number(curr.monthlyPayment) || 0), 0));
+        const totalMonthlyInterest = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (Number(curr.monthlyInterest) || 0), 0));
+        const totalMonthlyNet = computed(() => Math.round(totalMonthlyPayment.value + totalMonthlyInterest.value));
         const paidMonthlyCount = computed(() => filteredLoans.value.filter(item => getPaymentStatus(item.id).isMonthlyPaid).length);
         const interestReceivedCount = computed(() => filteredLoans.value.filter(item => getPaymentStatus(item.id).isInterestReceived).length);
 
         const isDueDateNearOrOverdue = (dueDateRule, loanId) => checkDueDateNearOrOverdue(dueDateRule, loanId, getPaymentStatus, selectedMonth.value);
 
         const getDueDateClass = (rule, loanId) => {
-            if (!rule) return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+            if (!rule) return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30';
             return getPaymentStatus(loanId).isMonthlyPaid
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                : 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30';
         };
 
         const getAssigneeBadgeClass = (name) => {
             switch (name) {
-                case 'Vinh': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
-                case 'Khang': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-                case 'Linh': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
-                default: return 'bg-slate-800 text-slate-300 border-slate-700';
+                case 'Vinh': return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-300 border-cyan-500/30';
+                case 'Khang': return 'bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30';
+                case 'Linh': return 'bg-sky-500/10 text-sky-600 dark:text-sky-300 border-sky-500/30';
+                default: return 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
             }
         };
 
-        const getBankIndicatorColor = (note) => (note && (note.includes('LÃI MỚI') || note.includes('new'))) ? 'bg-rose-500 animate-pulse' : 'bg-indigo-500';
+        const getBankIndicatorColor = (note) => (note && (note.includes('LÃI MỚI') || note.includes('new'))) ? 'bg-rose-500 animate-pulse' : 'bg-cyan-500';
 
         const toggleStatus = async (item, field) => {
             const current = getPaymentStatus(item.id);
             const newValue = !current[field];
             const actionName = field === 'isMonthlyPaid' ? (newValue ? 'ĐÃ TRẢ' : 'CHƯA TRẢ') : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
 
-            if (!confirm(`XÁC NHẬN: Bạn có chắc chắn muốn đổi trạng thái của "${item.bank}" thành "${actionName}" trong Tháng ${selectedMonth.value}?`)) return;
+            const confirmed = await showConfirm(
+                `Bạn có chắc chắn muốn đổi trạng thái của "${item.bank}" thành "${actionName}" trong Tháng ${selectedMonth.value}?`,
+                'Cập nhật trạng thái',
+                'info'
+            );
+            if (!confirmed) return;
 
             const formData = new FormData();
             formData.append('monthKey', selectedMonth.value);
@@ -309,7 +368,12 @@ createApp({
         };
 
         const deleteCurrentMonthSheet = async () => {
-            if (!confirm(`CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ Sheet Tháng ${selectedMonth.value}?`)) return;
+            const confirmed = await showConfirm(
+                `Bạn có chắc chắn muốn XÓA TOÀN BỘ Sheet Tháng ${selectedMonth.value}? Dữ liệu tháng này sẽ bị mất hoàn toàn!`,
+                'Xóa Sheet Tháng',
+                'danger'
+            );
+            if (!confirmed) return;
 
             try {
                 const response = await fetch(`/api/loans/delete-month-sheet/${selectedMonth.value}`, { method: 'DELETE', headers: getAuthHeaders() });
@@ -341,10 +405,16 @@ createApp({
         };
 
         const saveLoan = async () => {
+            const payment = Number(formLoan.value.monthlyPayment) || 0;
+            const interest = Number(formLoan.value.monthlyInterest) || 0;
+
             const payload = {
                 ...formLoan.value,
+                totalAmount: Number(formLoan.value.totalAmount) || 0,
+                monthlyPayment: payment,
+                monthlyInterest: interest,
                 monthKey: selectedMonth.value,
-                netMonthly: (formLoan.value.monthlyPayment || 0) + (formLoan.value.monthlyInterest || 0)
+                netMonthly: Math.round(payment + interest)
             };
             try {
                 const url = isEditing.value ? `/api/loans/${payload.id}` : '/api/loans';
@@ -359,7 +429,13 @@ createApp({
         };
 
         const deleteLoan = async (id) => {
-            if (!confirm(`Bạn có chắc muốn xóa khoản vay này khỏi Sheet Tháng ${selectedMonth.value}?`)) return;
+            const confirmed = await showConfirm(
+                `Bạn có chắc muốn xóa khoản vay này khỏi Sheet Tháng ${selectedMonth.value}?`,
+                'Xóa Khoản Vay',
+                'danger'
+            );
+            if (!confirmed) return;
+
             try {
                 const response = await fetch(`/api/loans/${id}?monthKey=${selectedMonth.value}`, { method: 'DELETE', headers: getAuthHeaders() });
                 if (!response.ok) throw new Error('Không thể xóa khoản vay');
@@ -378,91 +454,56 @@ createApp({
             monthlyNet: totalMonthlyNet.value
         });
 
-                    onMounted(async () => {
-                    initTheme(); // <--- Khởi tạo Theme Sáng/Tối
-                    syncTabFromHash();
-                    window.addEventListener('hashchange', syncTabFromHash);
+        onMounted(async () => {
+            initTheme();
+            syncTabFromHash();
+            window.addEventListener('hashchange', syncTabFromHash);
+            loginForm.value = { username: '', password: '' };
+            loadSession(); 
+            await loadUsers();
+            await loadLoans();
+        });
 
-                    loginForm.value = { username: '', password: '' };
-                    
-                    // 1. Tải Session trước
-                    loadSession(); 
-                    
-                    // 2. Sau khi đã có Session mới gọi API lấy Users & Loans
-                    await loadUsers();
-                    await loadLoans();
+        const showResetPasswordModal = ref(false);
+        const selectedUserForReset = ref(null);
+        const newPasswordInput = ref('');
+
+        const openResetPasswordModal = (user) => {
+            selectedUserForReset.value = user;
+            newPasswordInput.value = '';
+            showResetPasswordModal.value = true;
+        };
+
+        const submitChangePassword = async () => {
+            if (!selectedUserForReset.value || !newPasswordInput.value) return;
+
+            try {
+                const response = await fetch(`/api/users/${selectedUserForReset.value.id}/password`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ password: newPasswordInput.value })
                 });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
 
-                    const showResetPasswordModal = ref(false);
-                    const selectedUserForReset = ref(null);
-                    const newPasswordInput = ref('');
-
-                    const openResetPasswordModal = (user) => {
-                        selectedUserForReset.value = user;
-                        newPasswordInput.value = '';
-                        showResetPasswordModal.value = true;
-                    };
-
-                    const submitChangePassword = async () => {
-                        if (!selectedUserForReset.value || !newPasswordInput.value) return;
-
-                        try {
-                            const response = await fetch(`/api/users/${selectedUserForReset.value.id}/password`, {
-                                method: 'PUT',
-                                headers: getAuthHeaders(),
-                                body: JSON.stringify({ password: newPasswordInput.value })
-                            });
-                            const result = await response.json();
-                            if (!response.ok) throw new Error(result.message);
-
-                            alert(`Đã đổi mật khẩu thành công cho tài khoản "${selectedUserForReset.value.name}"!`);
-                            showResetPasswordModal.value = false;
-                            await loadUsers();
-                        } catch (err) {
-                            alert(err.message || 'Lỗi khi đổi mật khẩu');
-                        }
-                    };
-
-
-                    // Thêm state quản lý Dark mode
-                    const isDarkMode = ref(true);
-
-                    const applyTheme = (dark) => {
-                        isDarkMode.value = dark;
-                        if (dark) {
-                            document.documentElement.classList.add('dark');
-                            localStorage.setItem('fincontrol_theme', 'dark');
-                        } else {
-                            document.documentElement.classList.remove('dark');
-                            localStorage.setItem('fincontrol_theme', 'light');
-                        }
-                    };
-
-                    const toggleTheme = () => {
-                        applyTheme(!isDarkMode.value);
-                    };
-
-                    const initTheme = () => {
-                        const savedTheme = localStorage.getItem('fincontrol_theme');
-                        if (savedTheme) {
-                            applyTheme(savedTheme === 'dark');
-                        } else {
-                            // Mặc định kiểm tra chế độ hệ thống thiết bị (iPad/iPhone/Mac)
-                            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                            applyTheme(systemPrefersDark);
-                        }
-                    };
-
+                alert(`Đã đổi mật khẩu thành công cho tài khoản "${selectedUserForReset.value.name}"!`);
+                showResetPasswordModal.value = false;
+                await loadUsers();
+            } catch (err) {
+                alert(err.message || 'Lỗi khi đổi mật khẩu');
+            }
+        };
 
         return {
             currentTab, loansData, payments, allUsers, memberList, currentRole, userPermissions, searchQuery, filterAssignee, selectedMonth, monthList,
             currentMonthLoans, filteredLoans, totalPrincipal, totalMonthlyNet, totalMonthlyPayment, totalMonthlyInterest, paidMonthlyCount, interestReceivedCount,
             showAddModal, isEditing, formLoan, newUserForm, currentUserName, currentUserInitials,
-            currentRoleText, canEdit, isLoggedIn, loginForm, loginError,
+            currentRoleText, canEdit, isLoggedIn, loginForm, loginError, isDarkMode, toggleTheme,
+            confirmModal, showConfirm, closeConfirm,
             formatCurrency, isDueDateNearOrOverdue, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
             getDealCountdown, updateUserPermissions, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, login, logout, exportPDF, exportCSV, 
             showResetPasswordModal, selectedUserForReset, newPasswordInput,
-            openResetPasswordModal, submitChangePassword, isDarkMode, toggleTheme
+            openResetPasswordModal, submitChangePassword
         };
     }
 }).mount('#app');

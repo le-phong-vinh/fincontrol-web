@@ -2,37 +2,13 @@
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: #1e293b; }
 ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-/* Fix ô date picker trên Safari / iOS không bị tràn và canh giữa đẹp mắt */
-input[type="date"]::-webkit-calendar-picker-indicator {
-    background: transparent;
-    bottom: 0;
-    color: transparent;
-    cursor: pointer;
-    height: auto;
-    left: 0;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: auto;
-}
 
-input[type="date"] {
-    position: relative;
-    text-align: center;
-}
-
-
-[v-cloak] { display: none; }
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #1e293b; }
-::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-
-/* Thêm hiệu ứng chuyển màu mượt cho toàn trang */
+/* Thêm hiệu ứng chuyển background mượt mà khi đổi theme */
 body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Fix ô date picker trên Safari / iOS */
+/* Fix ô date picker trên Safari / iOS không bị tràn và canh giữa đẹp mắt */
 input[type="date"]::-webkit-calendar-picker-indicator {
     background: transparent;
     bottom: 0;
