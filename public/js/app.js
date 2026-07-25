@@ -35,16 +35,20 @@ createApp({
             title: 'Xác nhận hành động',
             message: '',
             type: 'info',
+            requirePassword: false,
+            inputPassword: '',
             resolve: null
         });
 
-        const showConfirm = (message, title = 'Xác nhận hành động', type = 'info') => {
+        const showConfirm = (message, title = 'Xác nhận hành động', type = 'info', requirePassword = false) => {
             return new Promise((resolve) => {
                 confirmModal.value = {
                     show: true,
                     title,
                     message,
                     type,
+                    requirePassword,
+                    inputPassword: '',
                     resolve
                 };
             });
@@ -52,7 +56,11 @@ createApp({
 
         const closeConfirm = (result) => {
             if (confirmModal.value.resolve) {
-                confirmModal.value.resolve(result);
+                confirmModal.value.resolve(
+                    result 
+                        ? { confirmed: true, password: confirmModal.value.inputPassword } 
+                        : { confirmed: false, password: '' }
+                );
             }
             confirmModal.value.show = false;
         };
@@ -213,12 +221,12 @@ createApp({
                 return;
             }
 
-            const confirmed = await showConfirm(
+            const res = await showConfirm(
                 `Bạn có chắc chắn muốn XÓA TÀI KHOẢN "${user.name}" (${user.username})? Hành động này không thể khôi phục.`,
                 'Xóa Tài Khoản',
                 'danger'
             );
-            if (!confirmed) return;
+            if (!res.confirmed) return;
 
             try {
                 const response = await fetch(`/api/users/${user.id}`, { method: 'DELETE', headers: getAuthHeaders() });
@@ -291,7 +299,6 @@ createApp({
             return list.sort((a, b) => parseInterestDayNumber(a.interestDays) - parseInterestDayNumber(b.interestDays));
         });
 
-        // Computed tính toán chống Floating-point và cộng nối chuỗi
         const totalPrincipal = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (Number(curr.totalAmount) || 0), 0));
         const totalMonthlyPayment = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (Number(curr.monthlyPayment) || 0), 0));
         const totalMonthlyInterest = computed(() => filteredLoans.value.reduce((acc, curr) => acc + (Number(curr.monthlyInterest) || 0), 0));
@@ -324,12 +331,12 @@ createApp({
             const newValue = !current[field];
             const actionName = field === 'isMonthlyPaid' ? (newValue ? 'ĐÃ TRẢ' : 'CHƯA TRẢ') : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
 
-            const confirmed = await showConfirm(
+            const res = await showConfirm(
                 `Bạn có chắc chắn muốn đổi trạng thái của "${item.bank}" thành "${actionName}" trong Tháng ${selectedMonth.value}?`,
                 'Cập nhật trạng thái',
                 'info'
             );
-            if (!confirmed) return;
+            if (!res.confirmed) return;
 
             const formData = new FormData();
             formData.append('monthKey', selectedMonth.value);
@@ -368,19 +375,39 @@ createApp({
         };
 
         const deleteCurrentMonthSheet = async () => {
-            const confirmed = await showConfirm(
-                `Bạn có chắc chắn muốn XÓA TOÀN BỘ Sheet Tháng ${selectedMonth.value}? Dữ liệu tháng này sẽ bị mất hoàn toàn!`,
-                'Xóa Sheet Tháng',
-                'danger'
+            const res = await showConfirm(
+                `Vui lòng nhập MẬT KHẨU ADMIN để xác nhận xóa toàn bộ Sheet Tháng ${selectedMonth.value}. Dữ liệu tháng này sẽ bị xóa vĩnh viễn!`,
+                'Xác Nhận Xóa Sheet Tháng',
+                'danger',
+                true
             );
-            if (!confirmed) return;
+
+            if (!res.confirmed) return;
+
+            if (!res.password) {
+                alert('Vui lòng nhập mật khẩu Admin!');
+                return;
+            }
 
             try {
-                const response = await fetch(`/api/loans/delete-month-sheet/${selectedMonth.value}`, { method: 'DELETE', headers: getAuthHeaders() });
-                if (!response.ok) throw new Error('Không thể xóa Sheet tháng này');
+                const response = await fetch(`/api/loans/delete-month-sheet/${selectedMonth.value}`, { 
+                    method: 'DELETE', 
+                    headers: {
+                        ...getAuthHeaders(),
+                        'X-Admin-Password': res.password
+                    },
+                    body: JSON.stringify({ adminPassword: res.password })
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Mật khẩu Admin không chính xác hoặc không thể xóa Sheet tháng này');
+                }
+
                 const result = await response.json();
                 loansData.value = result.loans;
                 if (monthList.value.length > 0) selectedMonth.value = monthList.value[0];
+                alert(`Đã xóa thành công Sheet Tháng ${selectedMonth.value}!`);
             } catch (err) {
                 alert(err.message);
             }
@@ -429,12 +456,12 @@ createApp({
         };
 
         const deleteLoan = async (id) => {
-            const confirmed = await showConfirm(
+            const res = await showConfirm(
                 `Bạn có chắc muốn xóa khoản vay này khỏi Sheet Tháng ${selectedMonth.value}?`,
                 'Xóa Khoản Vay',
                 'danger'
             );
-            if (!confirmed) return;
+            if (!res.confirmed) return;
 
             try {
                 const response = await fetch(`/api/loans/${id}?monthKey=${selectedMonth.value}`, { method: 'DELETE', headers: getAuthHeaders() });

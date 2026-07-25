@@ -612,7 +612,7 @@
             </div>
         </div>
 
-        <!-- CUSTOM CONFIRM MODAL (ĐỒNG BỘ DARK/LIGHT MODE) -->
+        <!-- CUSTOM CONFIRM MODAL (ĐỒNG BỘ DARK/LIGHT MODE & CÓ Ô NHẬP PASSWORD) -->
         <div v-if="confirmModal.show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-200">
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl p-5 sm:p-6 space-y-4 text-center">
                 
@@ -630,11 +630,23 @@
                     </p>
                 </div>
 
+                <!-- Ô NHẬP MẬT KHẨU (Chỉ hiện khi confirmModal.requirePassword = true) -->
+                <div v-if="confirmModal.requirePassword" class="pt-1 text-left">
+                    <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">Mật khẩu Admin *</label>
+                    <input v-model="confirmModal.inputPassword" 
+                           type="password" 
+                           placeholder="Nhập mật khẩu Admin..." 
+                           @keyup.enter="closeConfirm(true)"
+                           class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-rose-500 font-mono"
+                           required autofocus>
+                </div>
+
                 <div class="flex items-center gap-2.5 pt-2">
-                    <button @click="closeConfirm(false)" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer">
+                    <button @click="closeConfirm(false)" type="button" class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition cursor-pointer">
                         Hủy bỏ
                     </button>
                     <button @click="closeConfirm(true)" 
+                            type="button"
                             :class="confirmModal.type === 'danger' ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20' : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/20'"
                             class="flex-1 py-2.5 rounded-xl text-xs font-black transition shadow-md cursor-pointer">
                         Đồng ý
