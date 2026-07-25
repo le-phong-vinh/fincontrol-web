@@ -53,6 +53,33 @@ const upload = multer({ storage });
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Helper đọc tên người dùng an toàn từ Header (Decode Unicode tiếng Việt)
+const getActorName = (req, defaultName = 'Thành viên') => {
+  const rawName = req.headers['x-user-name'];
+  if (!rawName) return defaultName;
+  try {
+    return decodeURIComponent(rawName);
+  } catch (e) {
+    return rawName;
+  }
+};
+
+// Helper ghi Log Thao Tác
+const createLog = async (userName, action, details) => {
+  try {
+    const logDoc = {
+      id: Date.now(),
+      userName: userName || 'Hệ thống',
+      action,
+      details,
+      timestamp: new Date().toISOString()
+    };
+    await db.collection('logs').doc(String(logDoc.id)).set(logDoc);
+  } catch (err) {
+    console.error('Lỗi lưu log:', err.message);
+  }
+};
+
 // Middleware kiểm tra quyền ADMIN
 const requireAdmin = (req, res, next) => {
   const userRole = req.headers['x-user-role'];
@@ -106,7 +133,7 @@ const migrateJsonToFirestore = async () => {
 };
 
 // ==========================================
-// 3. API USER & SYSTEM
+// 3. API USER, SYSTEM & LOGS
 // ==========================================
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body || {};
@@ -116,6 +143,9 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng.' });
     }
     const user = snapshot.docs[0].data();
+
+    await createLog(user.name, 'Đăng nhập', `Đã đăng nhập vào hệ thống`);
+
     return res.json({
       id: user.id,
       username: user.username,
@@ -129,7 +159,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// GET /api/users: Trả về danh sách user
+// GET /api/users
 app.get('/api/users', async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
@@ -153,6 +183,8 @@ app.get('/api/users', async (req, res) => {
 app.post('/api/users', requireAdmin, async (req, res) => {
   try {
     const { name, username, password, role } = req.body;
+    const actorName = getActorName(req, 'Admin');
+
     if (!name || !username || !password) return res.status(400).json({ message: 'Thiếu thông tin' });
 
     const checkSnap = await db.collection('users').where('username', '==', username).get();
@@ -168,6 +200,7 @@ app.post('/api/users', requireAdmin, async (req, res) => {
     };
 
     await db.collection('users').doc(String(newUser.id)).set(newUser);
+    await createLog(actorName, 'Tạo người dùng', `Đã tạo tài khoản mới: ${name} (${role})`);
     
     const allUsersSnap = await db.collection('users').get();
     res.status(201).json(allUsersSnap.docs.map(doc => doc.data()));
@@ -179,7 +212,14 @@ app.post('/api/users', requireAdmin, async (req, res) => {
 app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = String(req.params.id);
+    const actorName = getActorName(req, 'Admin');
+
+    const userDoc = await db.collection('users').doc(userId).get();
+    const deletedName = userDoc.exists ? userDoc.data().name : userId;
+
     await db.collection('users').doc(userId).delete();
+    await createLog(actorName, 'Xóa người dùng', `Đã xóa tài khoản ID ${userId} (${deletedName})`);
+
     const allUsersSnap = await db.collection('users').get();
     res.json(allUsersSnap.docs.map(doc => doc.data()));
   } catch (err) {
@@ -191,18 +231,22 @@ app.put('/api/users/:id/permissions', requireAdmin, async (req, res) => {
   try {
     const userId = String(req.params.id);
     const { permissions } = req.body;
+    const actorName = getActorName(req, 'Admin');
+
     await db.collection('users').doc(userId).update({ permissions });
+    await createLog(actorName, 'Chỉnh quyền', `Đã cập nhật quyền cho User ID ${userId}`);
+
     res.json({ message: 'Cập nhật phân quyền thành công' });
   } catch (err) {
     res.status(500).json({ message: 'Lỗi cập nhật quyền' });
   }
 });
 
-// API ADMIN ĐỔI MẬT KHẨU TÀI KHOẢN
 app.put('/api/users/:id/password', requireAdmin, async (req, res) => {
   try {
     const userId = String(req.params.id);
     const { password } = req.body;
+    const actorName = getActorName(req, 'Admin');
 
     if (!password) {
       return res.status(400).json({ message: 'Mật khẩu mới không được để trống' });
@@ -216,7 +260,7 @@ app.put('/api/users/:id/password', requireAdmin, async (req, res) => {
     }
 
     await userRef.update({ password });
-    console.log(`🔑 [GOOGLE CLOUD]: Đã cập nhật mật khẩu cho User ID "${userId}"`);
+    await createLog(actorName, 'Đổi mật khẩu', `Đã đổi mật khẩu cho tài khoản "${docSnap.data().name}"`);
 
     res.json({ message: 'Đổi mật khẩu thành công' });
   } catch (err) {
@@ -224,11 +268,11 @@ app.put('/api/users/:id/password', requireAdmin, async (req, res) => {
   }
 });
 
-// API ADMIN ĐỔI VAI TRÒ (ROLE) CỦA TÀI KHOẢN
 app.put('/api/users/:id/role', requireAdmin, async (req, res) => {
   try {
     const userId = String(req.params.id);
     const { role } = req.body;
+    const actorName = getActorName(req, 'Admin');
 
     if (!['ADMIN', 'MEMBER', 'VIEWER'].includes(role)) {
       return res.status(400).json({ message: 'Vai trò không hợp lệ' });
@@ -241,8 +285,9 @@ app.put('/api/users/:id/role', requireAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy tài khoản' });
     }
 
+    const oldRole = docSnap.data().role;
     await userRef.update({ role });
-    console.log(`👑 [GOOGLE CLOUD]: Đã cập nhật Role "${role}" cho User ID "${userId}"`);
+    await createLog(actorName, 'Đổi Role', `Đã đổi vai trò của "${docSnap.data().name}" từ ${oldRole} -> ${role}`);
 
     res.json({ message: 'Cập nhật vai trò thành công' });
   } catch (err) {
@@ -250,8 +295,71 @@ app.put('/api/users/:id/role', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/logs: Lấy danh sách Log
+app.get('/api/logs', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    const snapshot = await db.collection('logs').get();
+    let logs = [];
+    
+    snapshot.forEach(doc => logs.push(doc.data()));
+    logs.sort((a, b) => b.id - a.id);
+
+    if (userRole !== 'ADMIN') {
+      const allowedActions = ['Đổi trạng thái Lãi', 'Đổi trạng thái Gốc', 'Đăng nhập'];
+      logs = logs.filter(log => allowedActions.includes(log.action));
+    }
+
+    res.json(logs.slice(0, 100));
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi tải nhật ký log' });
+  }
+});
+
+// DELETE /api/logs: Admin xóa sạch toàn bộ log
+app.delete('/api/logs', requireAdmin, async (req, res) => {
+  try {
+    const actorName = getActorName(req, 'Admin');
+    const snapshot = await db.collection('logs').get();
+
+    if (snapshot.empty) {
+      return res.json({ message: 'Không có log nào để xóa' });
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    await createLog(actorName, 'Xóa Nhật Ký', 'Đã xóa toàn bộ nhật ký lịch sử thao tác');
+
+    res.json({ message: 'Đã xóa toàn bộ nhật ký log thành công' });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi khi xóa log', error: err.message });
+  }
+});
+
+// DELETE /api/logs/:id: Admin xóa 1 dòng log lẻ
+app.delete('/api/logs/:id', requireAdmin, async (req, res) => {
+  try {
+    const logId = String(req.params.id);
+    const logRef = db.collection('logs').doc(logId);
+    const docSnap = await logRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ message: 'Không tìm thấy dòng log này' });
+    }
+
+    await logRef.delete();
+    res.json({ message: 'Đã xóa dòng log thành công' });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi khi xóa log', error: err.message });
+  }
+});
+
 // ==========================================
-// 4. API LOANS (KHOẢN VAY GOOGLE CLOUD FIRESTORE)
+// 4. API LOANS
 // ==========================================
 const getAllLoansObject = async () => {
   const snapshot = await db.collection('loans').get();
@@ -297,6 +405,7 @@ app.post('/api/loans', requireAdmin, async (req, res) => {
   try {
     const { monthKey, ...loanData } = req.body;
     const targetMonth = monthKey || '2026-07';
+    const actorName = getActorName(req, 'Admin');
 
     const docRef = db.collection('loans').doc(targetMonth);
     const docSnap = await docRef.get();
@@ -311,7 +420,8 @@ app.post('/api/loans', requireAdmin, async (req, res) => {
     currentList.unshift(newLoan);
     await docRef.set({ list: currentList });
 
-    console.log(`☁️ [GOOGLE CLOUD]: Đã thêm khoản vay "${newLoan.bank}" vào Tháng ${targetMonth}`);
+    await createLog(actorName, 'Thêm khoản vay', `Đã thêm khoản vay "${newLoan.bank}" (${targetMonth})`);
+
     const updatedLoans = await getAllLoansObject();
     res.status(201).json(updatedLoans);
   } catch (error) {
@@ -323,6 +433,7 @@ app.put('/api/loans/:id', requireAdmin, async (req, res) => {
   try {
     const loanId = String(req.params.id);
     const { monthKey, ...payload } = req.body;
+    const actorName = getActorName(req, 'Admin');
 
     let loansObj = await getAllLoansObject();
     let targetMonth = monthKey;
@@ -345,7 +456,7 @@ app.put('/api/loans/:id', requireAdmin, async (req, res) => {
       });
 
       await db.collection('loans').doc(targetMonth).set({ list: updatedList });
-      console.log(`☁️ [GOOGLE CLOUD]: Đã cập nhật ID "${loanId}" trong Tháng ${targetMonth}`);
+      await createLog(actorName, 'Sửa khoản vay', `Đã cập nhật khoản vay "${payload.bank}" (${targetMonth})`);
 
       const updatedLoans = await getAllLoansObject();
       return res.json(updatedLoans);
@@ -361,6 +472,7 @@ app.delete('/api/loans/:id', requireAdmin, async (req, res) => {
   try {
     const loanId = String(req.params.id);
     let monthKey = req.query.monthKey;
+    const actorName = getActorName(req, 'Admin');
 
     let loansObj = await getAllLoansObject();
 
@@ -369,9 +481,11 @@ app.delete('/api/loans/:id', requireAdmin, async (req, res) => {
     }
 
     if (monthKey && loansObj[monthKey]) {
+      const deletedLoan = loansObj[monthKey].find(loan => String(loan.id) === loanId);
       const updatedList = loansObj[monthKey].filter(loan => String(loan.id) !== loanId);
       await db.collection('loans').doc(monthKey).set({ list: updatedList });
-      console.log(`☁️ [GOOGLE CLOUD]: Đã xóa ID "${loanId}" khỏi Tháng ${monthKey}`);
+      
+      await createLog(actorName, 'Xóa khoản vay', `Đã xóa khoản vay "${deletedLoan ? deletedLoan.bank : loanId}" khỏi Tháng ${monthKey}`);
     }
 
     const updatedLoans = await getAllLoansObject();
@@ -384,6 +498,7 @@ app.delete('/api/loans/:id', requireAdmin, async (req, res) => {
 app.post('/api/loans/create-next-month', requireAdmin, async (req, res) => {
   try {
     const { currentMonth, newMonth } = req.body;
+    const actorName = getActorName(req, 'Admin');
     const docSnap = await db.collection('loans').doc(currentMonth).get();
 
     if (!docSnap.exists) {
@@ -397,6 +512,8 @@ app.post('/api/loans/create-next-month', requireAdmin, async (req, res) => {
     }));
 
     await db.collection('loans').doc(newMonth).set({ list: newList });
+    await createLog(actorName, 'Tạo Sheet Tháng', `Đã tạo Sheet tháng mới: ${newMonth} từ ${currentMonth}`);
+
     const updatedLoans = await getAllLoansObject();
     res.json({ message: `Khởi tạo ${newMonth} thành công`, loans: updatedLoans });
   } catch (error) {
@@ -404,11 +521,11 @@ app.post('/api/loans/create-next-month', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/loans/delete-month-sheet/:monthKey (YÊU CẦU MAT KHẨU ADMIN)
 app.delete('/api/loans/delete-month-sheet/:monthKey', requireAdmin, async (req, res) => {
   try {
     const { monthKey } = req.params;
     const adminPassword = req.headers['x-admin-password'] || req.body.adminPassword;
+    const actorName = getActorName(req, 'Admin');
 
     if (!adminPassword) {
       return res.status(400).json({ message: 'Yêu cầu nhập mật khẩu Admin để xác nhận!' });
@@ -424,25 +541,26 @@ app.delete('/api/loans/delete-month-sheet/:monthKey', requireAdmin, async (req, 
     }
 
     await db.collection('loans').doc(monthKey).delete();
+    await createLog(actorName, 'Xóa Sheet Tháng', `Đã xóa vĩnh viễn Sheet Tháng ${monthKey}`);
 
     const updatedLoans = await getAllLoansObject();
-    console.log(`🗑️ [GOOGLE CLOUD]: Đã xóa vĩnh viễn Sheet Tháng ${monthKey}`);
     res.json({ message: `Đã xóa Sheet Tháng ${monthKey}`, loans: updatedLoans });
   } catch (error) {
     res.status(500).json({ message: 'Không thể xóa Sheet Tháng', error: error.message });
   }
 });
 
-// POST /api/loans/:id/status-toggle (CHẶN ROLE VIEWER)
 app.post('/api/loans/:id/status-toggle', upload.single('billImage'), async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
+    const actorName = getActorName(req, 'Thành viên');
+
     if (userRole === 'VIEWER') {
       return res.status(403).json({ message: 'Tài khoản VIEWER chỉ có quyền xem, không thể thay đổi trạng thái!' });
     }
 
     const loanId = String(req.params.id);
-    const { monthKey, field, value, note } = req.body;
+    const { monthKey, field, value, bankName } = req.body;
 
     const pKey = `${monthKey}_${loanId}`;
     const pRef = db.collection('payments').doc(pKey);
@@ -457,10 +575,19 @@ app.post('/api/loans/:id/status-toggle', upload.single('billImage'), async (req,
       billImage: null
     };
 
-    if (field === 'isInterestReceived') current.isInterestReceived = value === 'true';
-    if (field === 'isMonthlyPaid') current.isMonthlyPaid = value === 'true';
-    if (note !== undefined) current.paymentNote = note;
-    if (req.file) current.billImage = `/uploads/${req.file.filename}`;
+    const isTrue = value === 'true';
+
+    if (field === 'isInterestReceived') {
+      current.isInterestReceived = isTrue;
+      const statusText = isTrue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI';
+      await createLog(actorName, 'Đổi trạng thái Lãi', `Đánh dấu "${bankName || loanId}" là [${statusText}] (Tháng ${monthKey})`);
+    }
+
+    if (field === 'isMonthlyPaid') {
+      current.isMonthlyPaid = isTrue;
+      const statusText = isTrue ? 'ĐÃ TRẢ GỐC' : 'CHƯA TRẢ GỐC';
+      await createLog(actorName, 'Đổi trạng thái Gốc', `Đánh dấu "${bankName || loanId}" là [${statusText}] (Tháng ${monthKey})`);
+    }
 
     await pRef.set(current);
 
@@ -480,7 +607,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// KÍCH HOẠT SERVER
 const startServer = async (port) => {
   await migrateJsonToFirestore();
 

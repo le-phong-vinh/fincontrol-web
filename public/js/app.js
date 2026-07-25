@@ -29,6 +29,10 @@ createApp({
 
         const isDarkMode = ref(true);
 
+        // State quản lý Logs
+        const showLogsModal = ref(false);
+        const logsList = ref([]);
+
         // State & Helper Toast Notification
         const toast = ref({ show: false, message: '', type: 'success' });
         let toastTimeout = null;
@@ -135,19 +139,23 @@ createApp({
             }
         };
 
+        // Mã hóa encodeURIComponent cho tên tiếng Việt trong Header
         const getAuthHeaders = () => {
             let role = 'MEMBER';
+            let name = 'Thành viên';
             try {
                 const saved = localStorage.getItem('fincontrol_session');
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     role = parsed.role || 'MEMBER';
+                    name = parsed.name || 'Thành viên';
                 }
             } catch (e) {}
 
             return {
                 'Content-Type': 'application/json',
                 'X-User-Role': role,
+                'X-User-Name': encodeURIComponent(name),
                 'X-Show-Real-Interest': String(userPermissions.value.showRealInterest)
             };
         };
@@ -185,6 +193,7 @@ createApp({
                 saveSession(result);
                 await loadUsers();
                 await loadLoans();
+                showToast(`Chào mừng ${result.name} quay trở lại!`, 'success');
             } catch (error) {
                 loginError.value = error.message;
             }
@@ -214,6 +223,67 @@ createApp({
                 }
             } catch (err) {
                 console.error('Lỗi tải danh sách thành viên:', err);
+            }
+        };
+
+        const loadLogs = async () => {
+            try {
+                const res = await fetch('/api/logs', { headers: getAuthHeaders() });
+                if (res.ok) {
+                    logsList.value = await res.json();
+                }
+            } catch (err) {
+                showToast('Lỗi tải nhật ký thao tác', 'error');
+            }
+        };
+
+        const openLogsModal = async () => {
+            await loadLogs();
+            showLogsModal.value = true;
+        };
+
+        const formatLogTime = (timeStr) => {
+            if (!timeStr) return '';
+            const d = new Date(timeStr);
+            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} - ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+        };
+
+        const clearAllLogs = async () => {
+            const res = await showConfirm(
+                'Bạn có chắc chắn muốn XÓA SẠCH toàn bộ nhật ký lịch sử thao tác? Hành động này không thể khôi phục!',
+                'Xóa Nhật Ký Log',
+                'danger'
+            );
+            if (!res.confirmed) return;
+
+            try {
+                const response = await fetch('/api/logs', {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const resData = await response.json();
+                if (!response.ok) throw new Error(resData.message || 'Không thể xóa log');
+
+                showToast('Đã xóa toàn bộ nhật ký thao tác!', 'success');
+                await loadLogs();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        };
+
+        const deleteSingleLog = async (logId) => {
+            try {
+                const response = await fetch(`/api/logs/${logId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const resData = await response.json();
+                if (!response.ok) throw new Error(resData.message || 'Không thể xóa log');
+
+                showToast('Đã xóa dòng log!', 'success');
+                await loadLogs();
+            } catch (err) {
+                showToast(err.message, 'error');
             }
         };
 
@@ -378,7 +448,7 @@ createApp({
 
             const current = getPaymentStatus(item.id);
             const newValue = !current[field];
-            const actionName = field === 'isMonthlyPaid' ? (newValue ? 'ĐÃ TRẢ' : 'CHƯA TRẢ') : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
+            const actionName = field === 'isMonthlyPaid' ? (newValue ? 'ĐÃ TRẢ GỐC' : 'CHƯA TRẢ GỐC') : (newValue ? 'ĐÃ NHẬN LÃI' : 'CHƯA NHẬN LÃI');
 
             const res = await showConfirm(
                 `Bạn có chắc chắn muốn đổi trạng thái của "${item.bank}" thành "${actionName}" trong Tháng ${selectedMonth.value}?`,
@@ -391,13 +461,21 @@ createApp({
             formData.append('monthKey', selectedMonth.value);
             formData.append('field', field);
             formData.append('value', String(newValue));
+            formData.append('bankName', item.bank);
 
             try {
-                const response = await fetch(`/api/loans/${item.id}/status-toggle`, { method: 'POST', body: formData });
+                const response = await fetch(`/api/loans/${item.id}/status-toggle`, { 
+                    method: 'POST', 
+                    headers: {
+                        'X-User-Role': currentRole.value,
+                        'X-User-Name': encodeURIComponent(currentUserName.value)
+                    },
+                    body: formData 
+                });
                 if (!response.ok) throw new Error('Cập nhật thất bại');
                 const data = await response.json();
                 payments.value = data.payments;
-                showToast(`Đã đổi trạng thái thành "${actionName}"!`, 'success');
+                showToast(`Đã đổi "${item.bank}" thành "${actionName}"!`, 'success');
             } catch (error) {
                 showToast(error.message, 'error');
             }
@@ -579,7 +657,7 @@ createApp({
             currentMonthLoans, filteredLoans, totalPrincipal, totalMonthlyNet, totalMonthlyPayment, totalMonthlyInterest, paidMonthlyCount, interestReceivedCount,
             showAddModal, isEditing, formLoan, newUserForm, currentUserName, currentUserInitials,
             currentRoleText, canEdit, canToggleStatus, isLoggedIn, loginForm, loginError, isDarkMode, toggleTheme,
-            confirmModal, showConfirm, closeConfirm, toast, showToast,
+            confirmModal, showConfirm, closeConfirm, toast, showToast, showLogsModal, logsList, openLogsModal, clearAllLogs, deleteSingleLog, formatLogTime,
             formatCurrency, isDueDateNearOrOverdue, formatDate, formatMonthLabel, getDueDateClass, getAssigneeBadgeClass, getBankIndicatorColor, getPaymentStatus, toggleStatus,
             getDealCountdown, updateUserPermissions, updateUserRole, createNewUser, deleteUser, createNewMonthSheet, deleteCurrentMonthSheet, openAddLoanModal, editLoan, saveLoan, deleteLoan, login, logout, exportPDF, exportCSV, 
             showResetPasswordModal, selectedUserForReset, newPasswordInput,
