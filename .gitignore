@@ -1,0 +1,10 @@
+# Chặn file Service Account Key của Google / Firebase
+serviceAccountKey.json
+*.json
+!package.json
+!package-lock.json
+
+# Chặn thư mục node_modules & môi trường
+node_modules/
+.env
+uploads/
